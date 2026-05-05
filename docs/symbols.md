@@ -168,7 +168,7 @@ names from the original disassembly.
 |---|---:|---|---|---|
 | `MIDI_RX_READ_BLOCKING` | `$AF76` | `L00B1` RX write index, `L00B2` RX read index, `$2F00` RX ring | `A` = byte read; `L00B2` increments; waits until data is present | Direct custom MIDI/POKEY ring helper. |
 | `MIDI_RX_HAS_BYTE` | `$AF82` | `L00B1`, `L00B2` | Z set when empty, Z clear when unread bytes exist | Non-blocking RX poll used before `MIDI_RX_READ_BLOCKING`. |
-| `NET_SERVICE_WAIT_POLL` | `$AF87` | `L00B3` clock, `L3ED0` timeout ticks, callback vectors | Clears `NET_ERROR_CODE` on timeout; otherwise preserves callback status | Polls bank-call slot `$0D` while waiting on `NET_CALL_VECTOR_2`, then calls `NET_CALL_VECTOR_0`. |
+| `NET_SERVICE_WAIT_POLL` | `$AF87` | `L00B3` clock, `NET_TIMEOUT_TICKS`, callback vectors | Clears `NET_ERROR_CODE` on timeout; otherwise preserves callback status | Polls bank-call slot `$0D` while waiting on `NET_CALL_VECTOR_2`, then calls `NET_CALL_VECTOR_0`. |
 | `NET_VECTOR_WAIT_POLL` | `$AFAE` | same timeout/vector state | Sets `NET_ERROR_CODE = $C7` on timeout; returns `NET_ERROR_CODE` in `Y` after callback | Similar wait loop, but polls slot `$0D` only while vector 2 is not ready. |
 | `NET_CALL_VECTOR_0`..`NET_CALL_VECTOR_6` | `$AFDA-$AFEC` | vector words at `$3ED3/$3ED5/$3ED7/$3ED9/$3EDB/$3EDD/$3EDF` | Whatever the selected callback returns | Bank 12 patches these vector words for setup/gameplay modes. |
 | `WAIT_FOR_RTC_TICK` | `$AFEF` | `RTCLOK+2` | returns after `RTCLOK+2` changes | Frame pacing helper; does not touch `NET_ERROR_CODE`. |
@@ -178,6 +178,47 @@ names from the original disassembly.
 | `PLAYER_RECORD_LENGTH_TABLE` | `$B0BE` | table read only | table read only | Small size/length lookup adjacent to the offset table. |
 | `CLEAR_STATUS_LINE_BUFFERS` | `$B0C7` | none | clears `$72C0-$72CF` and `$72D0-$72DF`; `A=0`, `X=$FF` | Used before writing status/error/menu message buffers. |
 | `MARK_STATUS_LINE_DIRTY` | `$B0D5` | `$72C0-$72DF` | sets bit 7 across the 32-byte status line region; `X=$FF` | Marks status/message bytes for display update. |
+
+## Network State Map
+
+These names cover the Phase 3 map of setup/network state around
+`$3CE6-$3D39`, `$3ECF-$3EEB`, and `$3F07-$3F13`. Names were promoted only where
+there are cross-bank references, repeated setup payload order, or direct use by
+the fixed-bank helpers.
+
+| Name | Address | Evidence / role |
+|---|---:|---|
+| `SETUP_TEAM_PLAY_FLAG` | `$3CE6` | Setup payload scalar; toggles team-style handling in banks 0, 1, 4, 12, and 13. When nonzero, bank 13 compares player teams and updates `TEAM_SCORE_COUNTERS`. |
+| `SETUP_TEAM_OPTION_FLAG` | `$3CE7` | Setup payload scalar sent after `SETUP_TEAM_PLAY_FLAG`; displayed in bank 4 and used by bank 13 in the team-play branch. |
+| `SETUP_SYNC_TOGGLE_FLAG` | `$3CE8` | Toggled by MIDI/net byte `$7F` in bank 4 and reset during setup/gameplay parameter exchange. Exact UI meaning still needs emulator confirmation. |
+| `PLAYER_FIRE_COOLDOWN` | `$3D19` | First byte of the per-player gameplay parameter relay; default `$0A`; copied to all players before setup exchange. |
+| `PLAYER_RELOAD_TIMER` | `$3D09` | Second gameplay parameter byte; default `$64`; used by bank 13 to reload `L3AA2`. |
+| `PLAYER_PROJECTILE_LIFE` | `$3CF9` | Third gameplay parameter byte; default `$32`; used when player state decrements to zero. |
+| `PLAYER_WEAPON_MODE` | `$3CE9` | Fourth gameplay parameter byte; default `$02`; controls player state transitions in bank 13. |
+| `PLAYER_INPUT_STATUS` | `$3D29` | Per-player live input/status byte written by bank 4 network service and bank 0 local/control logic. |
+| `TEAM_SCORE_COUNTERS` | `$3D39` | Four-byte team/status counter array. Bank 13 increments it on team-play events and display code compares it against `L3DB7`. |
+| `NET_TIMEOUT_DEADLINE` | `$3ECF` | Deadline byte computed as `L00B3 + NET_TIMEOUT_TICKS` by bank 4 and fixed-bank wait helpers. |
+| `NET_TIMEOUT_TICKS` | `$3ED0` | Timeout duration selected by bank 12 when patching network callback modes. |
+| `NET_INPUT_TRAIL_INDEX` | `$3ED1` | Bank 4 index into the `$7362/$7363` input/status trail shown while MIDI bytes are processed. |
+| `NET_ERROR_CODE` | `$3ED2` | Status/error code consumed by `PRINT_STATUS_MESSAGE`. |
+| `NET_VECTOR_0_LO/HI` ... `NET_VECTOR_6_LO/HI` | `$3ED3-$3EE0` | Seven callback vector words used by fixed-bank `NET_CALL_VECTOR_0` through `NET_CALL_VECTOR_6`; bank 12 patches these for setup, gameplay, and resync modes. |
+| `PENDING_NET_COMMAND` | `$3EE7` | Extended command received by bank 4 and dispatched by bank 12. |
+| `OUTGOING_NET_COMMAND` | `$3EE8` | Extended command queued by bank 12 for bank 4 injection into the command stream. |
+| `SETUP_REFRESH_DEADLINE` | `$3EEB` | Set to `L00B3 + $64` after setup/menu refresh points in banks 12 and 15. No active reads are confirmed yet. |
+| `BOT_COUNT_TARGET`, `BOT_COUNT_DRONE`, `BOT_COUNT_NINJA`, `BOT_COUNT_NASTY` | `$3EED-$3EEF`, `$3F13` | Setup bot counts; Nasty and Ninja share one packed protocol byte during resync. |
+| `SETUP_LINK_MODE` | `$3F07` | Setup path selector with observed values `$00-$03`; controls which callback vector set bank 12 installs. |
+| `SETUP_LAST_SLOT1F_RESULT` | `$3F08` | Result byte returned from bank-call slot `$1F` during setup probing. |
+| `SETUP_RESUME_FLAG` | `$3F09` | Resume/re-entry flag checked with `SETUP_LINK_MODE` before returning to setup flow. |
+| `SETUP_HOLD_SYNC_FLAG` | `$3F0A` | Set by bank 4 on command byte `$1B`; checked by bank 12 hold/sync loops. |
+| `STARTUP_KEYBOARD_MODE_FLAG` | `$3F0D` | Set from startup keyboard state in bank 12 and used by banks 13/14 display code. |
+| `SAVED_MEMLO_LO`, `SAVED_MEMLO_HI` | `$3F0F-$3F10` | Saved OS `MEMLO` bytes restored before selected setup/load paths. |
+| `SETUP_CHECKSUM_RETRY_COUNT` | `$3F12` | Retry counter for `SETUP_CHECKSUM_EXCHANGE`; after three failures it reports `ERR_CANT_SYNC`. |
+
+Still-generated bytes in this range:
+
+- `L3EE1`, `L3EE3-L3EE6`, `L3EE9`, and `L3EEA` remain generated labels. They
+  are either write-only in active code, tied to a local display helper, or not
+  yet semantically strong enough for a shared name.
 
 ## Network Setup And Gameplay Protocol
 

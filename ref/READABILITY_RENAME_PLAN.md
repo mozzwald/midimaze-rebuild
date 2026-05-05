@@ -96,22 +96,22 @@ Verification gate:
 Goal: replace the dense `$3Exx/$3Fxx` generated labels with documented state
 names where proven.
 
-- [ ] Map `$3ECF-$3EEB` network/setup state.
+- [x] Map `$3ECF-$3EEB` network/setup state.
   - Determine timeout counters, callback vectors, command bytes, and status
     fields.
-- [ ] Map `$3F07-$3F13` setup flags and bot/player fields.
-- [ ] Map `$3CE6-$3D39` setup/roster buffers.
-- [ ] Confirm and name vector storage used by `NET_CALL_VECTOR_0`,
+- [x] Map `$3F07-$3F13` setup flags and bot/player fields.
+- [x] Map `$3CE6-$3D39` setup/roster buffers.
+- [x] Confirm and name vector storage used by `NET_CALL_VECTOR_0`,
   `NET_CALL_VECTOR_1`, `NET_CALL_VECTOR_2`, and related fixed-bank indirect
   jumps.
-- [ ] Promote cross-bank state names into `include/game_ram.inc`.
-- [ ] Replace generated labels with names only after the state role is clear.
-- [ ] Add a `Network State Map` section to `docs/symbols.md`.
+- [x] Promote cross-bank state names into `include/game_ram.inc`.
+- [x] Replace generated labels with names only after the state role is clear.
+- [x] Add a `Network State Map` section to `docs/symbols.md`.
 
 Verification gate:
 
-- [ ] `make compare` exact after Phase 3.
-- [ ] `docs/symbols.md` describes each newly named state byte/range and the
+- [x] `make compare` exact after Phase 3.
+- [x] `docs/symbols.md` describes each newly named state byte/range and the
   evidence used.
 
 ## Phase 4: Player, Roster, And Gameplay Arrays
