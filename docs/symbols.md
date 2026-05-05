@@ -30,6 +30,104 @@ emulator traces.
 - `BANK_CALL_ADDR_LO = $3D3E`, `BANK_CALL_ADDR_HI = $3D66`,
   `BANK_CALL_BANK_ID = $3D8E`: bank-call target and bank tables.
 
+## Bank-Call Slot Table
+
+`BANK_CALL_INDEXED` uses `X` as a slot index. The fixed bank initializes 37
+packed entries at `LB03F` in `src/banks/bank15.asm`; each entry is:
+
+```text
+bank select byte, target low byte, target high byte
+```
+
+At call time the selected bank byte is written to `CART_BANK_SELECT`, then the
+trampoline jumps through the target address. Targets in `$A000-$BFFF` remain in
+the fixed bank; targets in `$8000-$9FFF` execute in the selected switchable
+bank. Rows marked with an unlabeled address are byte-accurate but still need
+semantic naming.
+
+| Slot | Initial bank select | Initial target | Initial source target | Observed call sites |
+|---:|---:|---:|---|---|
+| `$00` | `$00` | `$B511` | `FIXED_DRAW_FIELD_7380_FILL_ENTRY` | `bank14:L8015` |
+| `$01` | `$00` | `$B579` | `FIXED_FRAME_DISPLAY_SERVICE_ENTRY` | `bank14:L8061`, `bank14:L9D91`, `bank14:L9D9E`, `bank15:LB3A6` |
+| `$02` | `$0D` | `$8000` | `BANK13_PLAYER_PLACEMENT_SETUP_ENTRY` | - |
+| `$03` | `$0D` | `$8185` | `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | - |
+| `$04` | `$0E` | `$8000` | `BANK14_DRAW_STATE_CLEAR_ENTRY` | `bank12:L888B`, `bank12:L8C94`, `bank12:L9857` |
+| `$05` | `$0E` | `$8011` | `BANK14_DISPLAY_SCRATCH_CLEAR_ENTRY` | - |
+| `$06` | `$0E` | `$81FB` | `BANK14_SLOT06_DRAW_SERVICE_ENTRY` | - |
+| `$07` | `$0E` | `$9C00` | `BANK14_SLOT07_STATUS_CLEAR_ENTRY` | - |
+| `$08` | `$0D` | `$9090` | `BANK13_LOCAL_STATUS_GLYPH_UPDATE_ENTRY` | `bank13:L81D0`, `bank13:L87D4` |
+| `$09` | `$0E` | `$9C9B` | `BANK14_SLOT09_STATUS_CLEAR_ENTRY` | - |
+| `$0A` | `$0D` | `$8E00` | `BANK13_STATUS_TEMPLATE_COPY_ENTRY` | `bank15:LB3A6` |
+| `$0B` | `$0D` | `$9900` | `BANK13_SLOT0B_STATUS_CLEAR_ENTRY` | - |
+| `$0C` | `$0D` | `$8E96` | `BANK13_STATUS_TEMPLATE_REFRESH_ENTRY` | `bank12:L8180`, `bank12:L880C`, `bank12:L8B81` |
+| `$0D` | `$0D` | `$8EC0` | `BANK13_ROSTER_STATUS_SERVICE_ENTRY` | frequent setup polling paths |
+| `$0E` | `$0D` | `$91F6` | `BANK13_SLOT0E_STATUS_SERVICE_ENTRY` | - |
+| `$0F` | `$0D` | `$9115` | `BANK13_SLOT0F_DISPLAY_UPDATE_ENTRY` | `bank12:L9EA0` |
+| `$10` | `$0D` | `$8900` | `BANK13_SETUP_PLACEMENT_DISPATCH_ENTRY` | `bank12:L888B`, `bank12:L8C94`, `bank12:L9857` |
+| `$11` | `$0C` | `$0000` | volatile slot patched before use | patched by bank 12 |
+| `$12` | `$0C` | `$8000` | `BANK12_BOOT_MENU_ENTRY` | `bank15:CART_STRT` |
+| `$13` | `$04` | `$8000` | `BANK4_NET_COMMAND_SERVICE_ENTRY` | frequent net command send/service paths |
+| `$14` | `$04` | `$8003` | `BANK4_SLOT14_SERVICE_ENTRY` | `bank12:L879E`, `bank12:L94FC` |
+| `$15` | `$04` | `$8006` | `BANK4_SLOT15_SERVICE_ENTRY` | `bank12:L81B5` |
+| `$16` | `$04` | `$8009` | `BANK4_SLOT16_SERVICE_ENTRY` | `bank12:L87EE` |
+| `$17` | `$04` | `$800C` | `BANK4_SLOT17_SERVICE_ENTRY` | `bank12:L9430` |
+| `$18` | `$04` | `$800F` | `BANK4_SLOT18_SERVICE_ENTRY` | `bank12:L8392` |
+| `$19` | `$04` | `$8012` | `BANK4_SLOT19_SERVICE_ENTRY` | `bank12:L8989`, `bank12:L94BF` |
+| `$1A` | `$04` | `$8015` | `BANK4_SLOT1A_SERVICE_ENTRY` | `bank12:L8F57` |
+| `$1B` | `$04` | `$8018` | `BANK4_NET_STATE_RESET_ENTRY` | `bank12:L93F8`, `bank12:L9504` |
+| `$1C` | `$04` | `$801B` | `BANK4_SLOT1C_SERVICE_ENTRY` | setup/resync branch paths in bank 12 |
+| `$1D` | `$04` | `$801E` | `BANK4_SLOT1D_SERVICE_ENTRY` | `bank12:L8998`, `bank12:L94D3` |
+| `$1E` | `$04` | `$8021` | `BANK4_SLOT1E_SERVICE_ENTRY` | `bank12:L953F` |
+| `$1F` | `$04` | `$8024` | `BANK4_SLOT1F_SERVICE_ENTRY` | `bank12:L83B2`, `bank12:L83C3` |
+| `$20` | `$05` | `$8000` | bank 5 `$8000` | `bank12:L81E2`, `bank12:L829E` |
+| `$21` | `$02` | `$8000` | bank 2 `$8000` | setup/roster finalization paths in bank 12 |
+| `$22` | `$00` | `$8000` | bank 0 `$8000` | `bank12:L9A2D` |
+| `$23` | `$06` | `$8000` | bank 6 `$8000` | - |
+| `$24` | `$04` | `$8027` | `BANK4_SLOT24_SERVICE_ENTRY` | `bank12:L891F`, `bank12:L95F2` |
+
+Known volatile slot patches:
+
+- Slot `$11`: `bank12:L863D` patches this to `$9007` in the current bank
+  (`BANK_CALL_BANK_ID[$11] = L008C`) for setup flow. `bank12:L93F8` and
+  `bank12:L9504` patch it to `$9A15` in the current bank for gameplay/resync
+  loops.
+- Slot `$13`: `bank12:L863D` patches this to `BANK_RETURN` (`$AF36`).
+  `bank12:L93F8` and `bank12:L9504` restore it to bank 4 `$8000`
+  (`BANK4_NET_COMMAND_SERVICE_ENTRY`). `bank12:L95D0` temporarily redirects it
+  between `BANK_RETURN` and bank 4 `$8000` while waiting on
+  `NET_ERROR_CODE`.
+- Slot `$1B`: `bank12:L863D` patches this to `BANK_RETURN`. `bank12:L93F8`
+  and `bank12:L9504` restore it to bank 4 `$8018`
+  (`BANK4_NET_STATE_RESET_ENTRY`) before the setup/gameplay loop calls it.
+
+Several targets remain intentionally byte-form in source because adjacent
+regions mix executable landing pads with data. Their labels document confirmed
+bank-call entries without converting uncertain bytes into instructions.
+
+Phase 1 entry notes:
+
+- Bank 4 slots `$13-$1F` and `$24` are now explicit packed `JMP` stubs at
+  `$8000-$8029`. Slot `$13` services net commands through
+  `PENDING_NET_COMMAND`, `OUTGOING_NET_COMMAND`, `NET_ERROR_CODE`,
+  `LOCAL_PLAYER_INDEX`, `HUMAN_PLAYER_COUNT`, and the `$2B00/$3D29`
+  command/status buffers. Slot `$1B` clears the bank 4 network state around
+  `$7360/$7370`, `L3EB9-L3ECE`, `PENDING_NET_COMMAND`, and
+  `OUTGOING_NET_COMMAND`. The remaining bank 4 slots are named by slot until
+  their command-specific roles are proven.
+- Bank 13 slots `$08` and `$0A-$10` are display/status/setup services. The
+  named entries cover player placement setup, status template copies, local
+  status glyph updates, roster/status polling, and status clear/update landing
+  pads.
+- Bank 14 slots `$04-$07` and `$09` are drawing/status helpers. Slot `$04`
+  clears per-player draw/update state; slots `$05-$07` and `$09` clear or
+  prepare display/status scratch regions and call fixed-bank drawing helpers.
+- Fixed-bank slots `$00` and `$01` are display/frame services. Slot `$00`
+  fills the `$7380` field region with pattern bytes; slot `$01` continues the
+  frame/display service path and returns through `BANK_RETURN`.
+- Bank 12 slot `$12` is `BANK12_BOOT_MENU_ENTRY`, called by `CART_STRT` before
+  `MIDI_INSTALL` so the cartridge can run boot/menu initialization before the
+  custom MIDI/SIO interrupt vectors are installed.
+
 ## MIDI/POKEY Serial Path
 
 These labels are in fixed bank 15.

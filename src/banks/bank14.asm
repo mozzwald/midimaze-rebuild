@@ -93,8 +93,6 @@ L38C6	= $38C6
 L38C7	= $38C7
 L38CE	= $38CE
 L38CF	= $38CF
-L3968	= $3968
-L396F	= $396F
 L39B2	= $39B2
 L39D2	= $39D2
 L39F2	= $39F2
@@ -163,7 +161,6 @@ L3CE5	= $3CE5
 L3DD8	= $3DD8
 L3DE8	= $3DE8
 L3ECD	= $3ECD
-L3ED2	= $3ED2
 L3F0D	= $3F0D
 L3FFF	= $3FFF
 LA2A7	= $A2A7
@@ -176,13 +173,15 @@ LC003	= $C003
 LCA85	= $CA85
 LCFD4	= $CFD4
 	org $8000
-START1	LDA	#$00
+; Slot $04 entry: clears bank 14 per-player draw/update state.
+BANK14_DRAW_STATE_CLEAR_ENTRY	LDA	#$00
 	STA	L3CB0
 	STA	L3CB9
 	STA	L3CC2
 	STA	L3CCB
 	JMP	BANK_RETURN
-	.byte	$A2
+; Slot $05 entry. Clears display scratch buffers, then calls fixed-bank slot $00.
+BANK14_DISPLAY_SCRATCH_CLEAR_ENTRY	.byte	$A2
 L8012	.byte	$0F,$A9,$00 ; (undocumented opcode) - SLO L00A9
 L8015	STA	L3DD8,X
 	STA	L3DE8,X
@@ -530,7 +529,8 @@ L819B	.byte	$20 ; ' ' ; Screen code for '@'
 	.byte	$68 ; 'h'
 	.byte	$68 ; 'h'
 	.byte	$50 ; 'P'
-	.byte	$A2
+; Slot $06 entry. Calls fixed-bank slot $00 before bank 14 drawing work.
+BANK14_SLOT06_DRAW_SERVICE_ENTRY	.byte	$A2
 	.byte	$00 ; Screen code for ' '
 	.byte	$20 ; ' ' ; Screen code for '@'
 	.byte	$1D ; Screen code for '='
@@ -1376,7 +1376,7 @@ L867F	SEC
 	JMP	L8932
 	.byte	$E6
 L8684	TSX
-	LDY	L396F
+	LDY	MAZE_SIZE_INDEX
 	DEY
 	CPY	L00BA
 	BMI	L869F
@@ -1393,7 +1393,7 @@ L869F	SEC
 	JMP	(FRE+3)
 	.byte	$E6
 L86A4	TSX
-	LDY	L396F
+	LDY	MAZE_SIZE_INDEX
 	DEY
 	CPY	L00BA
 	BMI	L86BF
@@ -1410,7 +1410,7 @@ L86BF	SEC
 	JMP	(FRE+5)
 	.byte	$E6
 L86C4	TSX
-	LDY	L396F
+	LDY	MAZE_SIZE_INDEX
 	DEY
 	CPY	L00BA
 	BMI	L86DF
@@ -2509,7 +2509,7 @@ L8EE5	LDA	#$00
 	CPX	#$FF
 	BNE	L8EF0
 	RTS
-L8EF0	CPX	L3968
+L8EF0	CPX	LOCAL_PLAYER_INDEX
 	BEQ	L8F44
 	SEC
 	LDA	L39B2,X
@@ -4726,7 +4726,8 @@ L9B3E	.byte	$3F ; '?'
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
-	.byte	$A9
+; Slot $07 entry. Clears status/display fields around $5B74.
+BANK14_SLOT07_STATUS_CLEAR_ENTRY	.byte	$A9
 	.byte	$00 ; Screen code for ' '
 	.byte	$8D
 	.byte	$74 ; 't'
@@ -4881,7 +4882,8 @@ L9B3E	.byte	$3F ; '?'
 	.byte	$78 ; 'x'
 	.byte	$78 ; 'x'
 	.byte	$30 ; '0' ; Screen code for 'P'
-	.byte	$A9
+; Slot $09 entry. Alternate status/display clear path around $5B74.
+BANK14_SLOT09_STATUS_CLEAR_ENTRY	.byte	$A9
 	.byte	$00 ; Screen code for ' '
 	.byte	$8D
 	.byte	$74 ; 't'
@@ -5094,7 +5096,7 @@ L9D9E	LDX	#$0D
 	JSR	BANK_CALL_INDEXED
 	LDX	#$13
 	JSR	BANK_CALL_INDEXED
-	LDA	L3ED2
+	LDA	NET_ERROR_CODE
 	BNE	L9DB9
 	LDA	RTCLOK+2
 	CMP	L3ECD
