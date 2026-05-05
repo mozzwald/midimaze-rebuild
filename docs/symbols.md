@@ -60,6 +60,42 @@ Observed zero-page usage in this path:
 These `L00xx` names are still left as generated labels in source because they
 may be reused as scratch storage outside the MIDI path.
 
+## Network Setup And Gameplay Protocol
+
+These names are based on the reverse-engineering notes in `ref/` and matched
+against bank 12 control flow. The protocol uses raw serial bytes carried by the
+bank 15 MIDI/POKEY transport.
+
+- `LOCAL_PLAYER_INDEX = $3968`: local station/player index. Player 0 appears
+  to drive master transmit paths.
+- `PRNG_SEED_LOW = $3969`, `PRNG_SEED_HIGH = $396A`: shared random seed bytes.
+- `HUMAN_PLAYER_COUNT = $396B`, `TOTAL_PLAYER_COUNT = $396E`: human count and
+  final human+bot roster count after clamping.
+- `MAZE_SIZE_INDEX = $396F`: selects maze-size-dependent player limit.
+- `BOT_COUNT_TARGET = $3EED`, `BOT_COUNT_DRONE = $3EEE`,
+  `BOT_COUNT_NINJA = $3EEF`, `BOT_COUNT_NASTY = $3F13`: setup bot counts.
+  Nasty and Ninja are packed into one byte on the wire during resync.
+- `NET_ERROR_CODE = $3ED2`: status/error code consumed by
+  `PRINT_STATUS_MESSAGE`.
+- `PENDING_NET_COMMAND = $3EE7`: extended command byte received from the ring.
+- `OUTGOING_NET_COMMAND = $3EE8`: extended command byte to inject into the
+  ring.
+
+Named bank 12 protocol routines:
+
+- `MASTER_SEND_SETUP_PAYLOAD`: sends marker `$83` and setup payload as the
+  master/resync transmitter.
+- `SLAVE_RECEIVE_SETUP_PAYLOAD`: waits for marker `$83` and receives setup
+  payload as a slave/resync receiver.
+- `NET_COMMAND_DISPATCH`: handles confirmed extended commands `$81`, `$82`,
+  `$84`, and `$86`.
+- `RESYNC_COMMAND`, `RESYNC_MASTER_TX`, `RESYNC_SLAVE_RX`: command `$84`
+  resynchronization paths.
+- `GAMEPLAY_PARAM_RELAY`: relays the 7-byte per-player gameplay parameter
+  block before live play.
+- `SETUP_CHECKSUM_EXCHANGE`: ring-wide setup checksum exchange; after three
+  failures it reports "Can't sync".
+
 ## Raw Bytes
 
 Undocumented opcode forms that MADS warned about, or that are safer as data for

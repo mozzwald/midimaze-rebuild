@@ -64,6 +64,8 @@ Generated files live under `build/` and are ignored by git.
 - `tools/compare_rom.py`: byte comparison helper with bank/address mapping.
 - `docs/symbols.md`: notes for confirmed names and provisional labels.
 - `ref/`: original ROM, frozen full disassembly, and hardware/reference notes.
+  The MIDI Maze protocol reverse-engineering notes there are useful context,
+  but source comments should still be checked against the disassembly.
 
 ## Readability Rules
 
