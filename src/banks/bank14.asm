@@ -3,6 +3,7 @@
 	icl "include/atari_os.inc"
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
+	icl "include/game_ram.inc"
 
 ; Bank 14: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Contains drawing/game support code and data tables.

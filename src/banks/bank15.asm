@@ -3,6 +3,7 @@
 	icl "include/atari_os.inc"
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
+	icl "include/game_ram.inc"
 
 ; Bank 15: fixed 8KB cartridge bank, mapped at $A000-$BFFF.
 ; Contains resident cartridge code, OS/hardware setup, bank-switch helpers,
@@ -14,10 +15,10 @@
 ;   $BE6x-$BFFF  MIDI/POKEY serial handlers, buffers, and vectors.
 
 ; MIDI/SIO zero-page usage observed in this bank:
-;   L0082  RX write index into L2D00.
-;   L0083  RX read index from L2D00.
-;   L0084  TX read index from L2E00.
-;   L0085  TX write index into L2E00.
+;   L0082  RX write index into MIDI_RX_BUFFER.
+;   L0083  RX read index from MIDI_RX_BUFFER.
+;   L0084  TX read index from MIDI_TX_BUFFER.
+;   L0085  TX write index into MIDI_TX_BUFFER.
 ;   L0086  TX active flag; nonzero means SEROUT/ISR is draining bytes.
 
 L0080	= $0080
@@ -94,16 +95,11 @@ L0EAD	= $0EAD
 L1AD0	= $1AD0
 L20A2	= $20A2
 L28A9	= $28A9
-L2D00	= $2D00
-L2E00	= $2E00
 L2F00	= $2F00
 L3969	= $3969
 L396A	= $396A
 L3971	= $3971
 L3A52	= $3A52
-L3D3E	= $3D3E
-L3D66	= $3D66
-L3D8E	= $3D8E
 L3DF8	= $3DF8
 L3ECF	= $3ECF
 L3ED0	= $3ED0
@@ -3499,13 +3495,13 @@ LAEDC	RTS
 	.byte	$FC
 	.byte	$00 ; Screen code for ' '
 ; Indexed bank-call trampoline. X selects entries from the target address
-; and bank tables at L3D3E/L3D66/L3D8E. The current bank is saved
+; and bank tables at BANK_CALL_ADDR_LO/BANK_CALL_ADDR_HI/BANK_CALL_BANK_ID. The current bank is saved
 ; in L008C, CART_BANK_SELECT is updated, and control jumps indirectly.
-BANK_CALL_INDEXED	LDA	L3D3E,X
+BANK_CALL_INDEXED	LDA	BANK_CALL_ADDR_LO,X
 	STA	L0087
-	LDA	L3D66,X
+	LDA	BANK_CALL_ADDR_HI,X
 	STA	L0088
-	LDA	L3D8E,X
+	LDA	BANK_CALL_BANK_ID,X
 	TAX
 	LDA	L008C
 	PHA
@@ -3661,13 +3657,13 @@ LB020	LDX	#$00
 	LDY	#$00
 LB024	LDA	LB03F,X
 	INX
-	STA	L3D8E,Y
+	STA	BANK_CALL_BANK_ID,Y
 	LDA	LB03F,X
 	INX
-	STA	L3D3E,Y
+	STA	BANK_CALL_ADDR_LO,Y
 	LDA	LB03F,X
 	INX
-	STA	L3D66,Y
+	STA	BANK_CALL_ADDR_HI,Y
 	INY
 	CPY	#$25
 	BCC	LB024
@@ -6763,30 +6759,39 @@ LBB85	.byte	$01 ; Screen code for '!'
 	.byte	$4C ; 'L'
 	.byte	$67 ; 'g'
 	.byte	$BF
+; Minimal command monitor over the custom MIDI serial link.
+; Command byte dispatch observed here:
+;   0: send $FF acknowledgement.
+;   1: read address and jump indirectly.
+;   2: read address and return byte at that address.
+;   3: read address, read one byte, and store it at that address.
+;   >=4: use command as high byte, receive a 256-byte page, return checksum.
 CART_STRT	LDX	#$12
 	JSR	BANK_CALL_INDEXED
 	JSR	MIDI_INSTALL
-LBE1A	LDA	RANDOM
+MIDI_COMMAND_LOOP	LDA	RANDOM
 	STA	COLBK
 	JSR	MIDI_RX_COUNT
-	BEQ	LBE1A
+	BEQ	MIDI_COMMAND_LOOP
 	JSR	MIDI_READ_BYTE_BLOCKING
 	CMP	#$00
-	BEQ	LBE63
+	BEQ	MIDI_ACK_COMMAND
 	CMP	#$01
-	BEQ	LBE6B
+	BEQ	MIDI_JUMP_COMMAND
 	CMP	#$02
-	BEQ	LBE77
+	BEQ	MIDI_PEEK_COMMAND
 	CMP	#$03
-	BEQ	LBE84
+	BEQ	MIDI_POKE_COMMAND
 	STA	L0088
 	STA	L0089
 	LDA	#$00
 	STA	L0087
-LBE40	LDA	RANDOM
+; Receive 256 bytes into page $xx00, where xx is the command byte.
+; L0089 accumulates a checksum that is sent back after the page wraps.
+MIDI_LOAD_PAGE_COMMAND	LDA	RANDOM
 	STA	COLPF1
 	JSR	MIDI_RX_COUNT
-	BEQ	LBE40
+	BEQ	MIDI_LOAD_PAGE_COMMAND
 	JSR	MIDI_READ_BYTE_BLOCKING
 	LDY	#$00
 	STA	(L0087),Y
@@ -6794,28 +6799,29 @@ LBE40	LDA	RANDOM
 	ADC	L0089
 	STA	L0089
 	INC	L0087
-	BNE	LBE40
+	BNE	MIDI_LOAD_PAGE_COMMAND
 	LDA	L0089
 	JSR	MIDI_SEND_BYTE
-	JMP	LBE1A
-LBE63	LDA	#$FF
+	JMP	MIDI_COMMAND_LOOP
+MIDI_ACK_COMMAND	LDA	#$FF
 	JSR	MIDI_SEND_BYTE
-	JMP	LBE1A
-LBE6B	JSR	LBE91
-	JSR	LBE74
-	JMP	LBE1A
-LBE74	JMP	(L0087)
-LBE77	JSR	LBE91
+	JMP	MIDI_COMMAND_LOOP
+MIDI_JUMP_COMMAND	JSR	MIDI_READ_ADDRESS
+	JSR	MIDI_JUMP_INDIRECT
+	JMP	MIDI_COMMAND_LOOP
+MIDI_JUMP_INDIRECT	JMP	(L0087)
+MIDI_PEEK_COMMAND	JSR	MIDI_READ_ADDRESS
 	LDY	#$00
 	LDA	(L0087),Y
 	JSR	MIDI_SEND_BYTE
-	JMP	LBE1A
-LBE84	JSR	LBE91
+	JMP	MIDI_COMMAND_LOOP
+MIDI_POKE_COMMAND	JSR	MIDI_READ_ADDRESS
 	JSR	MIDI_READ_BYTE_BLOCKING
 	LDY	#$00
 	STA	(L0087),Y
-	JMP	LBE1A
-LBE91	JSR	MIDI_READ_BYTE_BLOCKING
+	JMP	MIDI_COMMAND_LOOP
+; Read little-endian address into L0087/L0088 for command handlers.
+MIDI_READ_ADDRESS	JSR	MIDI_READ_BYTE_BLOCKING
 	STA	L0087
 	JSR	MIDI_READ_BYTE_BLOCKING
 	STA	L0088
@@ -6826,7 +6832,7 @@ LBE91	JSR	MIDI_READ_BYTE_BLOCKING
 MIDI_RX_ISR	PHA
 	LDA	SERIN
 	LDY	L0082
-	STA	L2D00,Y
+	STA	MIDI_RX_BUFFER,Y
 	INC	L0082
 	PLA
 	TAY
@@ -6839,7 +6845,7 @@ MIDI_TX_ISR	PHA
 	LDY	L0084
 	CPY	L0085
 	BEQ	LBEBF
-	LDA	L2E00,Y
+	LDA	MIDI_TX_BUFFER,Y
 	STA	SEROUT
 	INC	L0084
 	JMP	LBEC3
@@ -6860,7 +6866,7 @@ MIDI_SEND_BYTE	SEI
 	LDY	#$00
 	RTS
 LBED5	LDY	L0085
-	STA	L2E00,Y
+	STA	MIDI_TX_BUFFER,Y
 	INY
 	STY	L0085
 	CLI
@@ -6876,7 +6882,7 @@ LBEDE	TYA
 MIDI_READ_BYTE_BLOCKING	LDY	L0083
 	CPY	L0082
 	BEQ	MIDI_READ_BYTE_BLOCKING
-	LDA	L2D00,Y
+	LDA	MIDI_RX_BUFFER,Y
 	INC	L0083
 	LDY	#$00
 	RTS

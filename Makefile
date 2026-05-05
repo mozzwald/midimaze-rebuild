@@ -9,7 +9,7 @@ BANKS := 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15
 BANK_BINS := $(addprefix $(BUILD_DIR)/bank,$(addsuffix .bin,$(BANKS)))
 BANK_LSTS := $(addprefix $(BUILD_DIR)/bank,$(addsuffix .lst,$(BANKS)))
 ROM := $(BUILD_DIR)/midimaze.rom
-INCLUDES := include/atari_os.inc include/hardware.inc include/cartridge.inc
+INCLUDES := include/atari_os.inc include/hardware.inc include/cartridge.inc include/game_ram.inc
 
 .PHONY: all clean compare listing run $(addprefix compare-bank,$(BANKS))
 

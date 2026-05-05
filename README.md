@@ -58,6 +58,7 @@ Generated files live under `build/` and are ignored by git.
   and entry points.
 - `include/hardware.inc`: GTIA, POKEY, PIA, and ANTIC register names.
 - `include/cartridge.inc`: cartridge control symbols.
+- `include/game_ram.inc`: confirmed game-private RAM structures.
 - `tools/compare_rom.py`: byte comparison helper with bank/address mapping.
 - `docs/symbols.md`: notes for confirmed names and provisional labels.
 - `ref/`: original ROM, frozen full disassembly, and hardware/reference notes.
