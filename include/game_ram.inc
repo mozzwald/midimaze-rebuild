@@ -10,6 +10,12 @@ BANK_CALL_BANK_ID	= $3D8E
 MIDI_RX_BUFFER	= $2D00
 MIDI_TX_BUFFER	= $2E00
 
+; Status/message line buffers used by the menu, setup, and error UI.
+STATUS_LINE_BUFFER	= $72C0
+STATUS_ERROR_PREFIX	= $72C1
+STATUS_MESSAGE_TEXT	= $72C8
+STATUS_LINE_BUFFER_2	= $72D0
+
 ; Networking/setup state. Names here are based on current reverse-engineering
 ; notes and matching cross-references in bank 12; keep uncertain scratch local.
 LOCAL_PLAYER_INDEX	= $3968
@@ -101,6 +107,14 @@ CMD_RESYNC	= $84
 CMD_ROSTER_EXCHANGE	= $86
 CMD_START_GAME	= $87
 ERR_GAME_TERMINATED	= $02
+ERR_MAZE_TOO_SMALL	= $03
 ERR_NETWORK	= $04
+ERR_TOO_MANY_MACHINES	= $05
+ERR_NO_DRONES_ALLOWED	= $06
 ERR_CHECKSUM	= $07
+ERR_DEVICE_NOT_RESPONDING	= $08
+ERR_NO_SUCH_DEVICE	= $09
 ERR_CANT_SYNC	= $0A
+ERR_NO_SUCH_DEVICE_ALT	= $82
+ERR_DEVICE_NOT_RESPONDING_ALT	= $8B
+ERR_TIMEOUT	= $C7

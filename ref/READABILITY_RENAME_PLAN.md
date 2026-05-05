@@ -141,20 +141,22 @@ Verification gate:
 
 Goal: make user-facing strings, status messages, and menu code readable.
 
-- [ ] Name `PRINT_STATUS_MESSAGE` message table entries.
-- [ ] Name known status/error message data, including "Can't sync", "too many",
+- [x] Name `PRINT_STATUS_MESSAGE` message table entries.
+- [x] Name known status/error message data, including "Can't sync", "too many",
   "machines", "timeout", and related setup/network messages.
-- [ ] Name menu/input routines that write `NET_ERROR_CODE` or dispatch setup
+- [x] Name menu/input routines that write `NET_ERROR_CODE` or dispatch setup
   options.
-- [ ] Name display-list, screen buffer, PMG, and color setup routines where
+- [x] Name display-list, screen buffer, PMG, and color setup routines where
   confirmed.
-- [ ] Keep text/data bytes intact. Convert byte runs into named tables only if
+- [x] Keep text/data bytes intact. Convert byte runs into named tables only if
   `make compare` remains exact.
+  - Promoted the confirmed status-line buffers and message tables. Broader
+    display/PMG internals remain for the bank-by-bank Phase 6 pass.
 
 Verification gate:
 
-- [ ] `make compare` exact after Phase 5.
-- [ ] User-facing messages have named labels or adjacent comments.
+- [x] `make compare` exact after Phase 5.
+- [x] User-facing messages have named labels or adjacent comments.
 
 ## Phase 6: Bank-By-Bank Routine Naming
 

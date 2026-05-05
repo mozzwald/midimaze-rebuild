@@ -65,9 +65,6 @@ L3EF3	= $3EF3
 L3F0C	= $3F0C
 L3F0E	= $3F0E
 L4CAF	= $4CAF
-L6C61	= $6C61
-L6D00	= $6D00
-L6E61	= $6E61
 L72C0	= $72C0
 L72C1	= $72C1
 L72C3	= $72C3
@@ -84,7 +81,6 @@ L7300	= $7300
 L7320	= $7320
 L7340	= $7340
 L7360	= $7360
-L7A61	= $7A61
 LAD00	= $AD00
 LAD2F	= $AD2F
 LAD4F	= $AD4F
@@ -108,7 +104,6 @@ LBE0D	= $BE0D
 LBE0E	= $BE0E
 LBE10	= $BE10
 LBE11	= $BE11
-LC4B5	= $C4B5
 	org $8000
 ; Slot $12 entry called by CART_STRT before MIDI_INSTALL. It performs the
 ; cartridge-side boot/menu initialization while the fixed bank is resident.
@@ -693,13 +688,13 @@ L8562	LDA	#$01
 	STA	SETUP_RESUME_FLAG
 	JSR	CLEAR_STATUS_LINE_BUFFERS
 	LDX	#$0F
-L856C	LDA	L8579,X
+L856C	LDA	STATUS_MSG_CARRIER_DETECTED,X
 	STA	L72C8,X
 	DEX
 	BPL	L856C
 	JSR	MARK_STATUS_LINE_DIRTY
 L8578	RTS
-L8579	.byte	$23 ; '#' ; Screen code for 'C'
+STATUS_MSG_CARRIER_DETECTED	.byte	$23 ; '#' ; Screen code for 'C'
 	.byte	$61 ; 'a'
 	.byte	$72 ; 'r'
 	.byte	$72 ; 'r'
@@ -866,7 +861,7 @@ L86F5	LDA	#$01
 	STA	NET_ERROR_CODE
 	JSR	CLEAR_STATUS_LINE_BUFFERS
 	LDX	#$19
-L8707	LDA	L8784,X
+L8707	LDA	STATUS_MSG_THIS_IS_MASTER_MACHINE,X
 	STA	L72C3,X
 	DEX
 	BPL	L8707
@@ -886,7 +881,7 @@ L8707	LDA	L8784,X
 	BNE	L877E
 	CMP	#$11
 	BCC	L873F
-	LDA	#$05
+	LDA	#ERR_TOO_MANY_MACHINES
 	STA	NET_ERROR_CODE
 	JMP	L877E
 L873F	JSR	NET_CALL_VECTOR_1
@@ -917,7 +912,7 @@ L873F	JSR	NET_CALL_VECTOR_1
 	JMP	L93F8
 L877E	JSR	PRINT_STATUS_MESSAGE
 L8781	JMP	L87EE
-L8784	.byte	$34 ; '4' ; Screen code for 'T'
+STATUS_MSG_THIS_IS_MASTER_MACHINE	.byte	$34 ; '4' ; Screen code for 'T'
 	.byte	$68 ; 'h'
 	.byte	$69 ; 'i'
 	.byte	$73 ; 's'
@@ -1083,7 +1078,7 @@ L88E3	LDA	L3DC7,X
 	BEQ	L88F9
 L88F6	JSR	PRINT_STATUS_MESSAGE
 L88F9	JMP	L87A6
-L88FC	LDA	#$05
+L88FC	LDA	#ERR_TOO_MANY_MACHINES
 	STA	NET_ERROR_CODE
 	BNE	L88F6
 L8903	CMP	#$17
@@ -1171,7 +1166,7 @@ L89A7	CMP	#$1C
 	BNE	L89EF
 	CMP	#$11
 	BCC	L89D7
-	LDA	#$05
+	LDA	#ERR_TOO_MANY_MACHINES
 	STA	NET_ERROR_CODE
 	BNE	L89EF
 L89D7	STA	HUMAN_PLAYER_COUNT
@@ -1201,7 +1196,7 @@ MASTER_SEND_SETUP_PAYLOAD	LDA	#MARKER_SETUP_PAYLOAD
 	LDA	NET_ERROR_CODE
 	BEQ	L8A1B
 L8A14	RTS
-L8A15	LDA	#$04
+L8A15	LDA	#ERR_NETWORK
 	STA	NET_ERROR_CODE
 	RTS
 L8A1B	LDA	MAZE_SIZE_INDEX
@@ -1371,13 +1366,13 @@ L8B81	LDA	#$01
 	JSR	LB359
 	JSR	CLEAR_STATUS_LINE_BUFFERS
 	LDX	#$16
-L8B93	LDA	L8BA2,X
+L8B93	LDA	STATUS_MSG_THIS_IS_SLAVE_MACHINE,X
 	STA	L72C4,X
 	DEX
 	BPL	L8B93
 	JSR	MARK_STATUS_LINE_DIRTY
 	JMP	L8BC7
-L8BA2	.byte	$34 ; '4' ; Screen code for 'T'
+STATUS_MSG_THIS_IS_SLAVE_MACHINE	.byte	$34 ; '4' ; Screen code for 'T'
 	.byte	$68 ; 'h'
 	.byte	$69 ; 'i'
 	.byte	$73 ; 's'
@@ -1563,7 +1558,7 @@ SLAVE_RECEIVE_SETUP_PAYLOAD	JSR	NET_VECTOR_WAIT_POLL
 	BNE	L8D4D
 	CMP	#MARKER_SETUP_PAYLOAD
 	BEQ	L8D4E
-	LDA	#$04
+	LDA	#ERR_NETWORK
 	STA	NET_ERROR_CODE
 L8D4D	RTS
 L8D4E	JSR	NET_CALL_VECTOR_1
@@ -1621,7 +1616,7 @@ L8D4E	JSR	NET_CALL_VECTOR_1
 	LDA	L0080
 	BNE	L8DD6
 	JMP	L8DDC
-L8DD6	LDA	#$06
+L8DD6	LDA	#ERR_NO_DRONES_ALLOWED
 	STA	NET_ERROR_CODE
 L8DDB	RTS
 L8DDC	LDX	#$00
@@ -2158,12 +2153,12 @@ L9006	RTS
 	.byte	$3E ; '>'
 	.byte	$D0
 	.byte	$DA
-L911E	.byte	$30 ; '0' ; Screen code for 'P'
+STATUS_MSG_PAUSE_TITLE	.byte	$30 ; '0' ; Screen code for 'P'
 	.byte	$21 ; '!' ; Screen code for 'A'
 	.byte	$35 ; '5' ; Screen code for 'U'
 	.byte	$33 ; '3' ; Screen code for 'S'
 	.byte	$25 ; '%' ; Screen code for 'E'
-L9123	.byte	$3B ; ';'
+STATUS_MSG_PAUSE_INSTRUCTIONS	.byte	$3B ; ';'
 	.byte	$33 ; '3' ; Screen code for 'S'
 	.byte	$25 ; '%' ; Screen code for 'E'
 	.byte	$2C ; ',' ; Screen code for 'L'
@@ -2372,7 +2367,7 @@ L91D4	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
-L91F4	.byte	$30 ; '0' ; Screen code for 'P'
+STATUS_PLAYER_LABEL_TEMPLATE	.byte	$30 ; '0' ; Screen code for 'P'
 	.byte	$6C ; 'l'
 	.byte	$61 ; 'a'
 	.byte	$79 ; 'y'
@@ -2393,7 +2388,7 @@ L9209	LDA	#$0A
 	LDY	#$00
 	LDA	#$08
 	STA	L0081
-L9215	LDA	L91F4,Y
+L9215	LDA	STATUS_PLAYER_LABEL_TEMPLATE,Y
 	STA	L3DFC,X
 	INX
 	INY
@@ -2429,7 +2424,7 @@ L924B	LDA	#$08
 	LDY	#$00
 	LDA	#$07
 	STA	L0081
-L9257	LDA	L91F4,Y
+L9257	LDA	STATUS_PLAYER_LABEL_TEMPLATE,Y
 	STA	L3DFC,X
 	INX
 	INY
@@ -2478,32 +2473,32 @@ L92AF	STA	TOTAL_PLAYER_COUNT
 PRINT_STATUS_MESSAGE	JSR	CLEAR_STATUS_LINE_BUFFERS
 	LDX	NET_ERROR_CODE
 	BEQ	L92EC
-	CPX	#$8B
+	CPX	#ERR_DEVICE_NOT_RESPONDING_ALT
 	BNE	L92C1
-	LDX	#$08
-L92C1	CPX	#$82
+	LDX	#ERR_DEVICE_NOT_RESPONDING
+L92C1	CPX	#ERR_NO_SUCH_DEVICE_ALT
 	BNE	L92C7
-	LDX	#$09
+	LDX	#ERR_NO_SUCH_DEVICE
 L92C7	STX	L3EF0
-	CPX	#$02
+	CPX	#ERR_GAME_TERMINATED
 	BCC	L9305
-	CPX	#$0B
+	CPX	#ERR_CANT_SYNC+1
 	BCS	L9305
-	LDA	L9339+1,X
+	LDA	STATUS_MSG_PTR_LO_MINUS_TWO-2,X
 	STA	L0080
-	LDA	L9342+1,X
+	LDA	STATUS_MSG_PTR_HI_MINUS_TWO-2,X
 	STA	L0081
 L92DC	LDY	#$00
 L92DE	LDA	(L0080),Y
 	BMI	L92E8
-	STA	L72C8,Y
+	STA	STATUS_MESSAGE_TEXT,Y
 	INY
 	BNE	L92DE
-L92E8	CPX	#$02
+L92E8	CPX	#ERR_GAME_TERMINATED
 	BEQ	L92F7
 L92EC	LDX	#$05
-L92EE	LDA	L93CF,X
-	STA	L72C1,X
+L92EE	LDA	STATUS_MSG_ERROR_PREFIX,X
+	STA	STATUS_ERROR_PREFIX,X
 	DEX
 	BPL	L92EE
 L92F7	JSR	MARK_STATUS_LINE_DIRTY
@@ -2512,11 +2507,11 @@ L92F7	JSR	MARK_STATUS_LINE_DIRTY
 	LDA	#$00
 	STA	NET_ERROR_CODE
 	RTS
-L9305	CPX	#$C7
+L9305	CPX	#ERR_TIMEOUT
 	BNE	L9313
-	LDA	#$71
+	LDA	#<STATUS_MSG_TIMEOUT
 	STA	L0080
-	LDA	#$93
+	LDA	#>STATUS_MSG_TIMEOUT
 	STA	L0081
 	BNE	L92DC
 L9313	LDX	#$10
@@ -2527,7 +2522,7 @@ L9318	CMP	#$64
 	SBC	#$64
 	INX
 	BNE	L9318
-L9322	STX	L72C8
+L9322	STX	STATUS_MESSAGE_TEXT
 	LDX	#$10
 L9327	CMP	#$0A
 	BCC	L9331
@@ -2535,169 +2530,31 @@ L9327	CMP	#$0A
 	SBC	#$0A
 	INX
 	BNE	L9327
-L9331	STX	L72C9
+L9331	STX	STATUS_MESSAGE_TEXT+1
 	ORA	#$10
-	STA	L72CA
-L9339	JMP	L92EC
-	.byte	$D5
-L933D	ADC	(COUNTR,X)
-	LSR	L8EE4+1
-L9342	.byte	$9F,$B5,$C4 ; (undocumented opcode) - SHA LC4B5,Y
-	.byte	$93,$93 ; (undocumented opcode) - SHA (L0093),Y
-	.byte	$93,$93 ; (undocumented opcode) - SHA (L0093),Y
-	.byte	$93,$93 ; (undocumented opcode) - SHA (L0093),Y
-	.byte	$93,$93 ; (undocumented opcode) - SHA (L0093),Y
-	.byte	$93,$34 ; (undocumented opcode) - SHA (BFENLO),Y
-	.byte	$6F,$6F,$00 ; data bytes originally disassembled as RRA SHFAMT
-	ADC	L6E61
-	ADC	L6D00,Y
-	ADC	(LOGCOL,X)
-	PLA
-	ADC	#$6E
-	ADC	COLAC+1
-	ORA	(FPTR2+1,X)
-	AND	L7A61
-	ADC	LINZBS
-; Text/message data begins here; some bytes still look like code to the disassembler.
-	.byte	$74,$6F ; (undocumented opcode) - NOP	SHFAMT,X
-	.byte	$6F,$00,$73 ; data bytes originally disassembled as RRA L7300
-	ADC	L6C61
-	JMP	($FF1F)
-	.byte	$29 ; ')' ; Screen code for 'I'
-	.byte	$0F ; Screen code for '/'
-	.byte	$2F ; '/' ; Screen code for 'O'
-	.byte	$00 ; Screen code for ' '
-	.byte	$74 ; 't'
-	.byte	$69 ; 'i'
-	.byte	$6D ; 'm'
-	.byte	$65 ; 'e'
-	.byte	$6F ; 'o'
-	.byte	$75 ; 'u'
-	.byte	$74 ; 't'
-	.byte	$00 ; Screen code for ' '
-	.byte	$FF
-	.byte	$2E ; '.' ; Screen code for 'N'
-	.byte	$65 ; 'e'
-	.byte	$74 ; 't'
-	.byte	$77 ; 'w'
-	.byte	$6F ; 'o'
-	.byte	$72 ; 'r'
-	.byte	$6B ; 'k'
-	.byte	$00 ; Screen code for ' '
-	.byte	$62 ; 'b'
-	.byte	$6F ; 'o'
-	.byte	$6F ; 'o'
-	.byte	$0D ; Screen code for '-'
-	.byte	$62 ; 'b'
-	.byte	$6F ; 'o'
-	.byte	$6F ; 'o'
-	.byte	$FF
-	.byte	$23 ; '#' ; Screen code for 'C'
-	.byte	$68 ; 'h'
-	.byte	$65 ; 'e'
-	.byte	$63 ; 'c'
-	.byte	$6B ; 'k'
-	.byte	$73 ; 's'
-	.byte	$75 ; 'u'
-	.byte	$6D ; 'm'
-	.byte	$00 ; Screen code for ' '
-	.byte	$62 ; 'b'
-	.byte	$6F ; 'o'
-	.byte	$6F ; 'o'
-	.byte	$0D ; Screen code for '-'
-	.byte	$62 ; 'b'
-	.byte	$6F ; 'o'
-	.byte	$6F ; 'o'
-	.byte	$FF
-	.byte	$24 ; '$' ; Screen code for 'D'
-	.byte	$65 ; 'e'
-	.byte	$76 ; 'v'
-	.byte	$69 ; 'i'
-	.byte	$63 ; 'c'
-	.byte	$65 ; 'e'
-	.byte	$00 ; Screen code for ' '
-	.byte	$6E ; 'n'
-	.byte	$6F ; 'o'
-	.byte	$74 ; 't'
-	.byte	$00 ; Screen code for ' '
-	.byte	$72 ; 'r'
-	.byte	$65 ; 'e'
-	.byte	$73 ; 's'
-	.byte	$70 ; 'p'
-	.byte	$6F ; 'o'
-	.byte	$6E ; 'n'
-	.byte	$64 ; 'd'
-	.byte	$69 ; 'i'
-	.byte	$6E ; 'n'
-	.byte	$67 ; 'g'
-	.byte	$FF
-	.byte	$2E ; '.' ; Screen code for 'N'
-	.byte	$6F ; 'o'
-	.byte	$00 ; Screen code for ' '
-	.byte	$73 ; 's'
-	.byte	$75 ; 'u'
-	.byte	$63 ; 'c'
-	.byte	$68 ; 'h'
-	.byte	$00 ; Screen code for ' '
-	.byte	$64 ; 'd'
-	.byte	$65 ; 'e'
-	.byte	$76 ; 'v'
-	.byte	$69 ; 'i'
-	.byte	$63 ; 'c'
-	.byte	$65 ; 'e'
-	.byte	$FF
-	.byte	$23 ; '#' ; Screen code for 'C'
-	.byte	$61 ; 'a'
-	.byte	$6E ; 'n'
-	.byte	$07 ; Screen code for '''
-	.byte	$74 ; 't'
-	.byte	$00 ; Screen code for ' '
-	.byte	$73 ; 's'
-	.byte	$79 ; 'y'
-	.byte	$6E ; 'n'
-	.byte	$63 ; 'c'
-	.byte	$FF
-L93CF	.byte	$25 ; '%' ; Screen code for 'E'
-	.byte	$32 ; '2' ; Screen code for 'R'
-	.byte	$32 ; '2' ; Screen code for 'R'
-	.byte	$2F ; '/' ; Screen code for 'O'
-	.byte	$32 ; '2' ; Screen code for 'R'
-	.byte	$1A ; Screen code for ':'
-	.byte	$27 ; ''' ; Screen code for 'G'
-	.byte	$61 ; 'a'
-	.byte	$6D ; 'm'
-	.byte	$65 ; 'e'
-	.byte	$00 ; Screen code for ' '
-	.byte	$74 ; 't'
-	.byte	$65 ; 'e'
-	.byte	$72 ; 'r'
-	.byte	$6D ; 'm'
-	.byte	$69 ; 'i'
-	.byte	$6E ; 'n'
-	.byte	$61 ; 'a'
-	.byte	$74 ; 't'
-	.byte	$65 ; 'e'
-	.byte	$64 ; 'd'
-	.byte	$FF
-	.byte	$2E ; '.' ; Screen code for 'N'
-	.byte	$6F ; 'o'
-	.byte	$00 ; Screen code for ' '
-	.byte	$64 ; 'd'
-	.byte	$72 ; 'r'
-	.byte	$6F ; 'o'
-	.byte	$6E ; 'n'
-	.byte	$65 ; 'e'
-	.byte	$73 ; 's'
-	.byte	$00 ; Screen code for ' '
-	.byte	$61 ; 'a'
-	.byte	$6C ; 'l'
-	.byte	$6C ; 'l'
-	.byte	$6F ; 'o'
-	.byte	$77 ; 'w'
-	.byte	$65 ; 'e'
-	.byte	$64 ; 'd'
-	.byte	$01 ; Screen code for '!'
-	.byte	$FF
+	STA	STATUS_MESSAGE_TEXT+2
+; Numeric/unknown NET_ERROR_CODE values fall through here after writing digits.
+STATUS_MSG_FALLBACK_SUFFIX_JUMP	JMP	L92EC
+; Pointer table for NET_ERROR_CODE values $02-$0A. Indexing subtracts two so
+; the error code can be used directly in X.
+STATUS_MSG_PTR_LO_MINUS_TWO	.byte	<STATUS_MSG_GAME_TERMINATED,<STATUS_MSG_MAZE_TOO_SMALL,<STATUS_MSG_NETWORK_BOOBOO
+	.byte	<STATUS_MSG_TOO_MANY_MACHINES,<STATUS_MSG_NO_DRONES_ALLOWED,<STATUS_MSG_CHECKSUM_BOOBOO
+	.byte	<STATUS_MSG_DEVICE_NOT_RESPONDING,<STATUS_MSG_NO_SUCH_DEVICE,<STATUS_MSG_CANT_SYNC
+STATUS_MSG_PTR_HI_MINUS_TWO	.byte	>STATUS_MSG_GAME_TERMINATED,>STATUS_MSG_MAZE_TOO_SMALL,>STATUS_MSG_NETWORK_BOOBOO
+	.byte	>STATUS_MSG_TOO_MANY_MACHINES,>STATUS_MSG_NO_DRONES_ALLOWED,>STATUS_MSG_CHECKSUM_BOOBOO
+	.byte	>STATUS_MSG_DEVICE_NOT_RESPONDING,>STATUS_MSG_NO_SUCH_DEVICE,>STATUS_MSG_CANT_SYNC
+; Status/error message bodies. Bytes are Atari screen codes; $FF terminates.
+STATUS_MSG_TOO_MANY_MACHINES	.byte	$34,$6F,$6F,$00,$6D,$61,$6E,$79,$00,$6D,$61,$63,$68,$69,$6E,$65,$73,$01,$FF
+STATUS_MSG_MAZE_TOO_SMALL	.byte	$2D,$61,$7A,$65,$00,$74,$6F,$6F,$00,$73,$6D,$61,$6C,$6C,$1F,$FF
+STATUS_MSG_TIMEOUT	.byte	$29,$0F,$2F,$00,$74,$69,$6D,$65,$6F,$75,$74,$00,$FF
+STATUS_MSG_NETWORK_BOOBOO	.byte	$2E,$65,$74,$77,$6F,$72,$6B,$00,$62,$6F,$6F,$0D,$62,$6F,$6F,$FF
+STATUS_MSG_CHECKSUM_BOOBOO	.byte	$23,$68,$65,$63,$6B,$73,$75,$6D,$00,$62,$6F,$6F,$0D,$62,$6F,$6F,$FF
+STATUS_MSG_DEVICE_NOT_RESPONDING	.byte	$24,$65,$76,$69,$63,$65,$00,$6E,$6F,$74,$00,$72,$65,$73,$70,$6F,$6E,$64,$69,$6E,$67,$FF
+STATUS_MSG_NO_SUCH_DEVICE	.byte	$2E,$6F,$00,$73,$75,$63,$68,$00,$64,$65,$76,$69,$63,$65,$FF
+STATUS_MSG_CANT_SYNC	.byte	$23,$61,$6E,$07,$74,$00,$73,$79,$6E,$63,$FF
+STATUS_MSG_ERROR_PREFIX	.byte	$25,$32,$32,$2F,$32,$1A
+STATUS_MSG_GAME_TERMINATED	.byte	$27,$61,$6D,$65,$00,$74,$65,$72,$6D,$69,$6E,$61,$74,$65,$64,$FF
+STATUS_MSG_NO_DRONES_ALLOWED	.byte	$2E,$6F,$00,$64,$72,$6F,$6E,$65,$73,$00,$61,$6C,$6C,$6F,$77,$65,$64,$01,$FF
 ; Repoint volatile bank-call slots used by the following loop. Bank ids not
 ; written here intentionally carry the table values initialized in fixed bank.
 L93F8	LDA	#$00
@@ -2897,7 +2754,7 @@ L95CB	JSR	CLEAR_STATUS_LINE_BUFFERS
 	LDX	#$0A
 ; Temporarily redirects slot $13 between BANK_RETURN and $8000 while
 ; waiting on state in NET_ERROR_CODE.
-L95D0	LDA	L9657,X
+L95D0	LDA	STATUS_MSG_PLEASE_HOLD,X
 	STA	L72CA,X
 	DEX
 	BPL	L95D0
@@ -2954,7 +2811,7 @@ L9651	RTS
 L9652	CMP	#CMD_RESYNC
 	BEQ	RESYNC_COMMAND
 	RTS
-L9657	.byte	$30 ; '0' ; Screen code for 'P'
+STATUS_MSG_PLEASE_HOLD	.byte	$30 ; '0' ; Screen code for 'P'
 	.byte	$2C ; ',' ; Screen code for 'L'
 	.byte	$25 ; '%' ; Screen code for 'E'
 	.byte	$21 ; '!' ; Screen code for 'A'
@@ -3160,7 +3017,7 @@ L9815	LDA	SETUP_LINK_MODE
 	BNE	L9835
 	CMP	#$00
 	BEQ	L9857
-	LDA	#$07
+	LDA	#ERR_CHECKSUM
 	STA	NET_ERROR_CODE
 L9835	JMP	L980F
 L9838	JSR	L993B
@@ -3171,7 +3028,7 @@ L9838	JSR	L993B
 	LDA	#$FF
 	JSR	NET_CALL_VECTOR_1
 	BNE	L9835
-	LDA	#$07
+	LDA	#ERR_CHECKSUM
 	STA	NET_ERROR_CODE
 L9850	LDA	#$00
 	JSR	NET_CALL_VECTOR_1
@@ -3407,7 +3264,7 @@ L9A5B	LDA	#$04
 	BEQ	L9A73
 	JMP	L9B09
 L9A73	LDX	#$1F
-L9A75	LDA	L9123,X
+L9A75	LDA	STATUS_MSG_PAUSE_INSTRUCTIONS,X
 	STA	L72C0,X
 	DEX
 	BPL	L9A75
@@ -3466,11 +3323,11 @@ L9ADF	LDX	#$0D
 	STX	SETUP_HOLD_SYNC_FLAG
 	CMP	#$84
 	BEQ	L9B39
-	LDA	#$02
+	LDA	#ERR_GAME_TERMINATED
 	STA	NET_ERROR_CODE
 	BNE	L9B39
 L9B09	LDX	#$04
-L9B0B	LDA	L911E,X
+L9B0B	LDA	STATUS_MSG_PAUSE_TITLE,X
 	STA	L72CE,X
 	DEX
 	BPL	L9B0B
@@ -3487,7 +3344,7 @@ L9B17	LDX	#$0D
 	STX	PENDING_NET_COMMAND
 	CMP	#$84
 	BEQ	L9B39
-	LDA	#$02
+	LDA	#ERR_GAME_TERMINATED
 	STA	NET_ERROR_CODE
 L9B39	JMP	BANK_RETURN
 ; Ring-wide setup checksum exchange. After three failed attempts it reports
@@ -3495,7 +3352,7 @@ L9B39	JMP	BANK_RETURN
 SETUP_CHECKSUM_EXCHANGE	LDA	SETUP_CHECKSUM_RETRY_COUNT
 	CMP	#$03
 	BCC	L9B4B
-	LDA	#$0A
+	LDA	#ERR_CANT_SYNC
 	STA	NET_ERROR_CODE
 	JMP	BANK_RETURN
 L9B4B	INC	SETUP_CHECKSUM_RETRY_COUNT

@@ -311,6 +311,49 @@ Named bank 12 protocol routines:
 - `SETUP_CHECKSUM_EXCHANGE`: ring-wide setup checksum exchange; after three
   failures it reports "Can't sync".
 
+## UI And Status Messages
+
+Phase 5 named the status/error message path without changing the original text
+bytes. Message bodies in bank 12 are Atari screen-code bytes terminated by
+`$FF`; `PRINT_STATUS_MESSAGE` copies them into the status line and marks the
+line dirty through the fixed-bank helpers.
+
+Shared status line RAM:
+
+| Name | Address | Role |
+|---|---:|---|
+| `STATUS_LINE_BUFFER` | `$72C0` | First 16-byte status/message line buffer; dirty bits are set across `$72C0-$72DF`. |
+| `STATUS_ERROR_PREFIX` | `$72C1` | Destination for the six-byte `ERROR:` prefix. |
+| `STATUS_MESSAGE_TEXT` | `$72C8` | Destination for the selected message body or numeric error code digits. |
+| `STATUS_LINE_BUFFER_2` | `$72D0` | Second 16-byte status/message line buffer cleared with `$72C0`. |
+
+`NET_ERROR_CODE` mappings used by `PRINT_STATUS_MESSAGE`:
+
+| Name | Value | Message label |
+|---|---:|---|
+| `ERR_GAME_TERMINATED` | `$02` | `STATUS_MSG_GAME_TERMINATED` |
+| `ERR_MAZE_TOO_SMALL` | `$03` | `STATUS_MSG_MAZE_TOO_SMALL` |
+| `ERR_NETWORK` | `$04` | `STATUS_MSG_NETWORK_BOOBOO` |
+| `ERR_TOO_MANY_MACHINES` | `$05` | `STATUS_MSG_TOO_MANY_MACHINES` |
+| `ERR_NO_DRONES_ALLOWED` | `$06` | `STATUS_MSG_NO_DRONES_ALLOWED` |
+| `ERR_CHECKSUM` | `$07` | `STATUS_MSG_CHECKSUM_BOOBOO` |
+| `ERR_DEVICE_NOT_RESPONDING` | `$08` | `STATUS_MSG_DEVICE_NOT_RESPONDING` |
+| `ERR_NO_SUCH_DEVICE` | `$09` | `STATUS_MSG_NO_SUCH_DEVICE` |
+| `ERR_CANT_SYNC` | `$0A` | `STATUS_MSG_CANT_SYNC` |
+| `ERR_TIMEOUT` | `$C7` | `STATUS_MSG_TIMEOUT` |
+
+Additional UI/status text labels named in bank 12:
+
+| Label | Observed text / role |
+|---|---|
+| `STATUS_MSG_CARRIER_DETECTED` | "Carrier detected" after serial carrier detection. |
+| `STATUS_MSG_THIS_IS_MASTER_MACHINE` | Master setup status line. |
+| `STATUS_MSG_THIS_IS_SLAVE_MACHINE` | Slave setup status line. |
+| `STATUS_MSG_PAUSE_TITLE` | Pause title copied during hold/pause flow. |
+| `STATUS_MSG_PAUSE_INSTRUCTIONS` | Pause instructions copied during hold/pause flow. |
+| `STATUS_MSG_PLEASE_HOLD` | Hold/sync wait message for command `$82`. |
+| `STATUS_PLAYER_LABEL_TEMPLATE` | Player label template used to build the roster/status text table at `$3DFC`. |
+
 ## Raw Bytes
 
 Undocumented opcode forms that MADS warned about, or that are safer as data for
