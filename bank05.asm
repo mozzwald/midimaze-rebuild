@@ -1,25 +1,16 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 05: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Contains initialization/OS-facing code and preserved trailing fill.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$9FFF  Initialization/OS-facing code followed by preserved fill.
 
-CASINI	= $0002
-RAMLO	= $0004
-TSTDAT	= $0007
-WARMST	= $0008
-BOOT	= $0009
-DOSINI	= $000C
-APPMHI	= $000E
-POKMSK	= $0010
-ICHIDZ	= $0020
-ICDNOZ	= $0021
-ICBALZ	= $0024
-ICBLHZ	= $0029
-CRITIC	= $0042
-NEWROW	= $0060
-DELTAC	= $0077
 L0080	= $0080
 L0081	= $0081
 L008C	= $008C
@@ -31,16 +22,6 @@ L00B0	= $00B0
 L00CE	= $00CE
 L00CF	= $00CF
 L00D0	= $00D0
-FRE	= $00DA
-VPRCED	= $0202
-VSERIN	= $020A
-VIMIRQ	= $0216
-CDTMA1	= $0226
-RUNAD	= $02E0
-INITAD	= $02E2
-MEMLO	= $02E7
-DVSTAT	= $02EA
-HATABS	= $031A
 L0400	= $0400
 L0401	= $0401
 L0402	= $0402
@@ -117,19 +98,7 @@ LA91E	= $A91E
 LAA20	= $AA20
 LAD02	= $AD02
 LAD23	= $AD23
-LAF36	= $AF36
-AUDC1	= $D201
-AUDC2	= $D203
-SKREST	= $D20A
-SERIN	= $D20D
-SEROUT	= $D20D
-IRQST	= $D20E
-IRQEN	= $D20E
-SKSTAT	= $D20F
-PACTL	= $D302
-PBCTL	= $D303
-WSYNC	= $D40A
-SETVBV	= $E45C
+BANK_RETURN	= $AF36
 LE4A5	= $E4A5 ; OS ROM table/entry, exact purpose not yet verified.
 LE6D0	= $E6D0 ; OS ROM routine, exact purpose not yet verified.
 LF004	= $F004
@@ -189,7 +158,7 @@ L8059	LDA	L00B0
 L806F	LDA	RUNAD+1
 	BEQ	L801F
 	JSR	L807A
-	JMP	LAF36
+	JMP	BANK_RETURN
 L807A	JMP	(RUNAD)
 L807D	JMP	(INITAD)
 L8080	INC	L00AD

@@ -1,11 +1,16 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 04: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; This bank is mostly executable game logic with embedded tables.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
 
-RTCLOK	= $0012
 L0080	= $0080
 L0081	= $0081
 L0083	= $0083
@@ -39,14 +44,6 @@ L00C9	= $00C9
 L00CA	= $00CA
 L00CB	= $00CB
 L00CC	= $00CC
-STICK0	= $0278
-STRIG0	= $0284
-ICCOM	= $0342
-ICBAL	= $0344
-ICBAH	= $0345
-ICBLL	= $0348
-ICBLH	= $0349
-ICAX1	= $034A
 L0600	= $0600
 L0601	= $0601
 L0602	= $0602
@@ -123,8 +120,8 @@ L7361	= $7361
 L7362	= $7362
 L7363	= $7363
 L7370	= $7370
-LAF1D	= $AF1D
-LAF36	= $AF36
+BANK_CALL_INDEXED	= $AF1D
+BANK_RETURN	= $AF36
 LAF76	= $AF76
 LAF82	= $AF82
 LAFDA	= $AFDA
@@ -134,8 +131,6 @@ LAFF6	= $AFF6
 LB0AE	= $B0AE
 LB0C7	= $B0C7
 LB0D5	= $B0D5
-CONSOL	= $D01F
-CIOV	= $E456
 	org $8000
 START1	JMP	L8080
 	.byte	$4C ; 'L'
@@ -147,7 +142,7 @@ L800D	TYA
 	DEY
 	JMP	L94F4
 	.byte	$4C ; 'L'
-L8013	DCP	L4C8C,Y	; (undocumented opcode)
+L8013	.byte	$DB,$8C,$4C ; (undocumented opcode) - DCP L4C8C,Y
 	.byte	$53,$8B ; (undocumented opcode) - SRE (L008B),Y
 	JMP	L8048
 	.byte	$4C ; 'L'
@@ -201,7 +196,7 @@ L8064	STA	L3EBB,X
 	STA	L3ECE
 	LDA	#$01
 	STA	L3EBA
-	JMP	LAF36
+	JMP	BANK_RETURN
 L8080	LDX	L3EB9
 	BEQ	L808E
 	DEX
@@ -312,7 +307,7 @@ L8170	LDA	L3968
 	ADC	L3ED0
 	STA	L3ECF
 	JSR	L802A
-L8185	JMP	LAF36
+L8185	JMP	BANK_RETURN
 L8188	JSR	LAFE0
 	BEQ	L81D2
 	CLC
@@ -337,7 +332,7 @@ L81A3	DEX
 	JSR	LAFDD
 	BNE	L81C0
 L81BD	JSR	L802A
-L81C0	JMP	LAF36
+L81C0	JMP	BANK_RETURN
 L81C3	INC	L3EB9
 	DEC	L3ECC
 	BEQ	L81BD
@@ -350,7 +345,7 @@ L81D2	LDA	L00B3
 	LDA	#$C7
 	STA	L3ED2
 L81DE	JSR	L802A
-	JMP	LAF36
+	JMP	BANK_RETURN
 L81E4	JSR	LAFE0
 	BEQ	L81D2
 	CLC
@@ -367,7 +362,7 @@ L81E4	JSR	LAFE0
 	BNE	L820D
 	DEC	L3EB9
 	JSR	L802A
-L820D	JMP	LAF36
+L820D	JMP	BANK_RETURN
 	.byte	$A5
 	.byte	$B3
 	.byte	$CD
@@ -457,7 +452,7 @@ L82B9	INC	L3ECB
 	BCS	L82C7
 	JMP	L8226
 L82C7	JSR	L802A
-	JMP	LAF36
+	JMP	BANK_RETURN
 L82CD	.byte	$10 ; Screen code for '0'
 	.byte	$2F ; '/' ; Screen code for 'O'
 	.byte	$4E ; 'N'
@@ -5573,7 +5568,7 @@ L9826	STY	L3ED2
 	JSR	L9AFE
 	LDA	#$FF
 	STA	L3ED2
-	JMP	LAF36
+	JMP	BANK_RETURN
 	.byte	$61 ; 'a'
 	.byte	$5E
 	.byte	$0A ; Screen code for '*'
@@ -6403,7 +6398,7 @@ L9BB6	.byte	$3A ; (undocumented opcode) - NOP
 	ROL
 	ROL	L414D
 	.byte	$5A ; (undocumented opcode) - NOP
-	SHS	L10A2,Y	; (undocumented opcode)
+	.byte	$9B,$A2,$10 ; (undocumented opcode) - SHS L10A2,Y
 	LDA	#$03
 	STA	ICCOM,X
 	LDA	#$20
@@ -6617,16 +6612,16 @@ L9D41	LDA	RTCLOK+2
 	STA	L00C8
 	JSR	L9C79
 L9D4F	LDX	#$0D
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDA	L3EBA
 	BEQ	L9D6B
 	LDX	#$13
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDA	L3ED2
 	BNE	L9D68
 	LDA	L3EE7
 	BEQ	L9D6B
-L9D68	JMP	LAF36
+L9D68	JMP	BANK_RETURN
 L9D6B	LDA	RTCLOK+2
 	CMP	L00C7
 	BMI	L9D41

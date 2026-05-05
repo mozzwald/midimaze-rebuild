@@ -1,18 +1,26 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 02: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Entry code vectors through fixed-bank routines, followed mostly by data/fill.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$8009  Entry stub into fixed-bank helper routines.
+;   $800A-$9FFF  Data/fill region preserved as emitted bytes.
 
-LAF36	= $AF36
+BANK_RETURN	= $AF36
 LAF41	= $AF41
 	org $8000
 START1	LDY	#$00
 	LDX	#$80
 	LDA	#$01
 	JSR	LAF41
-	JMP	LAF36
+	JMP	BANK_RETURN
+; Preserved data/fill immediately following the bank entry stub.
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '

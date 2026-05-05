@@ -1,9 +1,15 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 06: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Starts by clearing/initializing RAM regions and then branches into data/code.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$9FFF  RAM setup and data/code used by fixed-bank entry points.
 
 L0080	= $0080
 L00AD	= $00AD
@@ -19,7 +25,7 @@ L3500	= $3500
 L3600	= $3600
 L3700	= $3700
 L396F	= $396F
-LAF36	= $AF36
+BANK_RETURN	= $AF36
 	org $8000
 START1	STY	L0080
 	LDX	L0080
@@ -68,7 +74,7 @@ L805A	CLC
 	INC	L00B0
 L8065	DEX
 	BNE	L8042
-	JMP	LAF36
+	JMP	BANK_RETURN
 L806B	.byte	$0C ; Screen code for ','
 	.byte	$0C ; Screen code for ','
 	.byte	$10 ; Screen code for '0'

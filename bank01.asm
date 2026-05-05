@@ -1,17 +1,21 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 01: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; This bank is mostly executable game logic with embedded tables.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
 
-FREQ	= $0040
 L0080	= $0080
 L0083	= $0083
 L0085	= $0085
 L00A6	= $00A6
 L00A7	= $00A7
-FPTR2	= $00FE
 L0600	= $0600
 L2E00	= $2E00
 L396B	= $396B
@@ -95,11 +99,12 @@ L41DA	= $41DA
 L41DE	= $41DE
 L41DF	= $41DF
 LAD00	= $AD00
-LAF36	= $AF36
+BANK_RETURN	= $AF36
 LBE06	= $BE06
 LBE0C	= $BE0C
 	org $8000
 START1	JMP	L8012
+; Absolute jump stubs stored as raw bytes; targets are in this bank.
 	.byte	$4C ; 'L'
 	.byte	$0C ; Screen code for ','
 	.byte	$81
@@ -197,11 +202,11 @@ L80B7	TYA
 	JMP	L80AE
 L80C9	LDA	#$00
 	STA	L40CC
-	JMP	LAF36
+	JMP	BANK_RETURN
 L80D1	JMP	L80C9
 	.byte	$85
 L80D5	.byte	$80,$A5 ; (undocumented opcode) - NOP	#$A5
-	SAX	(L0085,X)	; (undocumented opcode)
+	.byte	$83,$85 ; (undocumented opcode) - SAX (L0085,X)
 	INC	L85A3+2,X
 	STA	FPTR2+1
 	LDX	#$00
@@ -309,10 +314,10 @@ L81D0	JSR	L859E
 	JMP	L81E6
 L81DE	LDA	#$FF
 	STA	L40CA
-	JMP	LAF36
+	JMP	BANK_RETURN
 L81E6	LDA	#$00
 	STA	L40CA
-	JMP	LAF36
+	JMP	BANK_RETURN
 	.byte	$AE
 L81EF	SBX	#$40	; (undocumented opcode)
 	LDA	L3F46,X
@@ -512,9 +517,9 @@ L83AE	LDX	#$41
 	BNE	L83B9
 	LDX	#$BF
 L83B9	STX	L410C
-L83BC	JMP	LAF36
+L83BC	JMP	BANK_RETURN
 	.byte	$AD
-L83C0	DCP	L8D40	; (undocumented opcode)
+L83C0	.byte	$CF,$40,$8D ; (undocumented opcode) - DCP L8D40
 	CMP	(FREQ),Y
 	LDX	L40CB
 	LDA	L39B2,X
@@ -620,11 +625,12 @@ L846F	LDX	L40CB
 	LDX	L40CB
 	LDA	#$00
 	STA	L3F76,X
-	JMP	LAF36
+	JMP	BANK_RETURN
 L84DC	JMP	L8525
 L84DF	LDA	L41D9
 	BEQ	L8517
 	JMP	L84F0
+; Small bit-mask/offset table consumed by the following routine.
 L84E7	.byte	$10 ; Screen code for '0'
 	.byte	$01 ; Screen code for '!'
 	.byte	$20 ; ' ' ; Screen code for '@'
@@ -652,7 +658,7 @@ L84F0	LDA	L40D5
 L8517	LDX	L40CB
 	LDA	#$01
 	STA	L3F76,X
-	JMP	LAF36
+	JMP	BANK_RETURN
 L8522	JMP	L846F
 L8525	LDY	L40CF
 	LDA	L3A72,Y

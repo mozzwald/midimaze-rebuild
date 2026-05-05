@@ -1,18 +1,25 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 15: fixed 8KB cartridge bank, mapped at $A000-$BFFF.
 ; Contains resident cartridge code, OS/hardware setup, bank-switch helpers,
 ; and the MIDI/POKEY serial interrupt paths near the end of the bank.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $A000-$AFxx  Resident fixed-bank data and drawing/bank helper code.
+;   $BE6x-$BFFF  MIDI/POKEY serial handlers, buffers, and vectors.
 
-TSTDAT	= $0007
-WARMST	= $0008
-POKMSK	= $0010
-RTCLOK	= $0012
-XMTDON	= $003A
-SAVADR	= $0068
-ROWAC	= $0070
+; MIDI/SIO zero-page usage observed in this bank:
+;   L0082  RX write index into L2D00.
+;   L0083  RX read index from L2D00.
+;   L0084  TX read index from L2E00.
+;   L0085  TX write index into L2E00.
+;   L0086  TX active flag; nonzero means SEROUT/ISR is draining bytes.
+
 L0080	= $0080
 L0081	= $0081
 L0082	= $0082
@@ -81,30 +88,6 @@ L00D0	= $00D0
 L00D1	= $00D1
 L00D2	= $00D2
 L00D3	= $00D3
-FR0	= $00D4
-VDSLST	= $0200
-VSERIN	= $020A
-VSEROR	= $020C
-SDMCTL	= $022F
-SDLSTL	= $0230
-SDLSTH	= $0231
-SSKCTL	= $0232
-GPRIOR	= $026F
-PCOLR0	= $02C0
-PCOLR1	= $02C1
-PCOLR2	= $02C2
-PCOLR3	= $02C3
-COLOR0	= $02C4
-COLOR2	= $02C6
-DVSTAT	= $02EA
-CRSINH	= $02F0
-ICCOM	= $0342
-ICBAL	= $0344
-ICBAH	= $0345
-ICBLL	= $0348
-ICBLH	= $0349
-ICAX1	= $034A
-IOCB6	= $03A0
 L0AD0	= $0AD0
 L0CA9	= $0CA9
 L0EAD	= $0EAD
@@ -135,45 +118,7 @@ L5F00	= $5F00
 L6C3E	= $6C3E
 L7024	= $7024
 L72C0	= $72C0
-HPOSP0	= $D000
-HPOSP1	= $D001
-HPOSP2	= $D002
-HPOSP3	= $D003
-HPOSM0	= $D004
-HPOSM1	= $D005
-HPOSM2	= $D006
-HPOSM3	= $D007
-SIZEP0	= $D008
-SIZEP1	= $D009
-SIZEP2	= $D00A
-SIZEP3	= $D00B
-SIZEM	= $D00C
-COLPF0	= $D016
-COLPF1	= $D017
-COLPF2	= $D018
-COLBK	= $D01A
-GRACTL	= $D01D
 LD0B1	= $D0B1 ; GTIA mirror/open-bus-looking address used only in raw byte comment.
-AUDF3	= $D204
-AUDC3	= $D205
-AUDF4	= $D206
-AUDC4	= $D207
-AUDCTL	= $D208
-RANDOM	= $D20A
-SKREST	= $D20A
-SEROUT	= $D20D
-SERIN	= $D20D
-IRQEN	= $D20E
-SKCTL	= $D20F
-PACTL	= $D302
-PBCTL	= $D303
-PMBASE	= $D407
-WSYNC	= $D40A
-VCOUNT	= $D40B
-NMIEN	= $D40E
-CART_BANK_SELECT	= $D500 ; CCTL cartridge control region; write selects bank.
-CIOV	= $E456
-SETVBV	= $E45C
 LE520	= $E520 ; OS ROM routine, exact purpose not yet verified.
 	org $A000
 	.byte	$00 ; Screen code for ' '
@@ -3199,6 +3144,7 @@ LAD2F	.byte	$00 ; Screen code for ' '
 	.byte	$40 ; '@'
 	.byte	$80
 	.byte	$C0
+; Repeating screen-code lookup table.
 LAD4F	.byte	$30 ; '0' ; Screen code for 'P'
 	.byte	$30 ; '0' ; Screen code for 'P'
 	.byte	$30 ; '0' ; Screen code for 'P'
@@ -3552,7 +3498,10 @@ LAEDC	RTS
 	.byte	$F8
 	.byte	$FC
 	.byte	$00 ; Screen code for ' '
-LAF1D	LDA	L3D3E,X
+; Indexed bank-call trampoline. X selects entries from the target address
+; and bank tables at L3D3E/L3D66/L3D8E. The current bank is saved
+; in L008C, CART_BANK_SELECT is updated, and control jumps indirectly.
+BANK_CALL_INDEXED	LDA	L3D3E,X
 	STA	L0087
 	LDA	L3D66,X
 	STA	L0088
@@ -3563,14 +3512,17 @@ LAF1D	LDA	L3D3E,X
 	STX	L008C
 	STX	CART_BANK_SELECT
 	JMP	(L0087)
-LAF36	STA	L0087
+; Common return point for banked routines. Restores the saved bank
+; before returning to the original caller.
+BANK_RETURN	STA	L0087
 	PLA
 	STA	L008C
 	STA	CART_BANK_SELECT
 	LDA	L0087
 	RTS
 	.byte	$84
-LAF42	SAX	L0086	; (undocumented opcode)
+; Alternate bank trampoline entry; exact calling convention still unverified.
+LAF42	.byte	$87,$86 ; (undocumented opcode) - SAX L0086
 	DEY
 	TAX
 	LDA	L008C
@@ -3631,7 +3583,7 @@ LAF87	CLC
 	ADC	L3ED0
 	STA	L3ECF
 LAF90	LDX	#$0D
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	JSR	LAFE0
 	BEQ	LAFA1
 	JSR	LAFDA
@@ -3652,7 +3604,7 @@ LAFB7	JSR	LAFE0
 	LDA	L3ED2
 	BNE	LAFD2
 	LDX	#$0D
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDA	L00B3
 	CMP	L3ECF
 	BMI	LAFB7
@@ -3669,7 +3621,7 @@ LAFDA	JMP	($3ED3)
 LAFE0	JMP	($3ED7)
 	.byte	$6C ; 'l'
 LAFE4	CMP	L6C3E,Y
-	DCP	L6C3E,Y	; (undocumented opcode)
+	.byte	$DB,$3E,$6C ; (undocumented opcode) - DCP L6C3E,Y
 	CMP	L6C3E,X
 	.byte	$DF,$3E ; (undocumented opcode) - DCP LA53E,X
 LAFEF	.byte	$A5
@@ -3898,7 +3850,7 @@ LB10B	STY	L3ED2
 	RTS
 	.byte	$52 ; 'R'
 LB110	AND	(XMTDON),Y
-	SHS	L20A2,Y	; (undocumented opcode)
+	.byte	$9B,$A2,$20 ; (undocumented opcode) - SHS L20A2,Y
 	LDA	#$0D
 	STA	ICCOM,X
 	JSR	CIOV
@@ -4469,9 +4421,9 @@ LB3A6	STA	(L0080),Y
 	STA	(L0080),Y
 	JSR	LB4DE
 	LDX	#$0A
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDX	#$01
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDA	#$00
 	STA	HPOSP0
 	STA	HPOSP1
@@ -4638,7 +4590,7 @@ LB529	LDA	#$55
 	INC	L0081
 LB573	DEX
 	BNE	LB529
-	JMP	LAF36
+	JMP	BANK_RETURN
 	.byte	$A5
 LB57A	STA	L1AD0
 	LDA	#$73
@@ -4652,7 +4604,7 @@ LB57A	STA	L1AD0
 	STA	L0090
 	LDA	#$69
 	STA	L0091
-	JMP	LAF36
+	JMP	BANK_RETURN
 	.byte	$A9
 LB598	.byte	$63,$8D ; (undocumented opcode) - RRA (L008D,X)
 	BIT	ROWAC
@@ -4665,7 +4617,7 @@ LB598	.byte	$63,$8D ; (undocumented opcode) - RRA (L008D,X)
 	STA	L0090
 	LDA	#$79
 	STA	L0091
-	JMP	LAF36
+	JMP	BANK_RETURN
 	.byte	$A9
 	.byte	$00 ; Screen code for ' '
 	.byte	$85
@@ -6812,7 +6764,7 @@ LBB85	.byte	$01 ; Screen code for '!'
 	.byte	$67 ; 'g'
 	.byte	$BF
 CART_STRT	LDX	#$12
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	JSR	LBEFD
 LBE1A	LDA	RANDOM
 	STA	COLBK
@@ -6869,6 +6821,8 @@ LBE91	JSR	LBEE9
 	STA	L0088
 	RTS
 	.byte	$98
+; VSERIN handler: read POKEY SERIN into the RX ring buffer.
+; Indexes intentionally wrap as 8-bit values.
 LBE9D	PHA
 	LDA	SERIN
 	LDY	L0082
@@ -6879,6 +6833,8 @@ LBE9D	PHA
 	PLA
 	RTI
 	.byte	$98
+; VSEROR handler: feed the next queued TX byte to POKEY SEROUT.
+; When the TX ring is empty, L0086 is cleared to mark the transmitter idle.
 LBEAD	PHA
 	LDY	L0084
 	CPY	L0085
@@ -6893,6 +6849,8 @@ LBEC3	PLA
 	TAY
 	PLA
 	RTI
+; Queue one byte for MIDI transmit. If the transmitter is idle, the byte
+; is written directly to SEROUT; otherwise it is appended to the TX ring.
 LBEC7	SEI
 	LDY	L0086
 	BNE	LBED5
@@ -6913,6 +6871,8 @@ LBEDE	TYA
 	BCS	LBEDE
 	LDY	#$00
 	RTS
+; Blocking MIDI receive: wait until RX read and write indexes differ,
+; then return the next byte from the RX ring.
 LBEE9	LDY	L0083
 	CPY	L0082
 	BEQ	LBEE9
@@ -6920,10 +6880,13 @@ LBEE9	LDY	L0083
 	INC	L0083
 	LDY	#$00
 	RTS
+; Return RX ring occupancy as write-minus-read with natural 8-bit wrap.
 LBEF7	LDA	L0083
 	SEC
 	SBC	L0082
 	RTS
+; Install custom MIDI/SIO handlers and program POKEY for direct serial I/O.
+; This bypasses normal CIO/SIO transfer routines and hooks OS serial vectors.
 LBEFD	SEI
 	LDA	#$3C
 	STA	PACTL
@@ -6973,6 +6936,7 @@ LBF2B	STA	L0082,Y
 	.byte	$A5
 LBF68	STX	L00D0
 	.byte	$FC,$A0,$53 ; (undocumented opcode) - NOP	$53A0,X
+; Remove the custom MIDI/SIO handlers and restore saved OS serial vectors.
 LBF6D	DEY
 	BNE	LBF6D
 	LDA	#$3C
@@ -6997,6 +6961,7 @@ LBF95	LDA	#$06
 	LDY	#$9E
 	LDX	#$BF
 	JMP	SETVBV
+; Raw cartridge tail bytes/vectors preserved until the exact structure is verified.
 	.byte	$A9
 	.byte	$00 ; Screen code for ' '
 	.byte	$8D

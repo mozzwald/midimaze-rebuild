@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
 
 
@@ -77,6 +78,8 @@ def main() -> int:
 
     print(f"Actual:   {args.actual} ({len(actual)} bytes)")
     print(f"Expected: {args.original} {expected_desc} ({len(expected)} bytes)")
+    print(f"SHA256:   actual   {hashlib.sha256(actual).hexdigest()}")
+    print(f"SHA256:   expected {hashlib.sha256(expected).hexdigest()}")
 
     if first_diff is None:
         print("Result:   exact match")

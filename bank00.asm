@@ -1,9 +1,15 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 00: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; This bank is mostly executable game logic with embedded tables.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
 
 L0080	= $0080
 L0083	= $0083
@@ -19,7 +25,6 @@ L009F	= $009F
 L00A0	= $00A0
 L00A6	= $00A6
 L00A7	= $00A7
-FPTR2	= $00FE
 L0600	= $0600
 L2E00	= $2E00
 L396B	= $396B
@@ -102,11 +107,10 @@ L4119	= $4119
 LAD00	= $AD00
 LAD6F	= $AD6F
 LAEB0	= $AEB0
-LAF36	= $AF36
+BANK_RETURN	= $AF36
 LAF41	= $AF41
 LBE06	= $BE06
 LBE0C	= $BE0C
-CONSOL	= $D01F
 	org $8000
 START1	JMP	L8026
 	.byte	$48 ; 'H'
@@ -179,7 +183,7 @@ L8096	INC	L40CB
 	LDX	L40CB
 	CPX	L396E
 	BCC	L8030
-	JMP	LAF36
+	JMP	BANK_RETURN
 L80A4	LDY	#$03
 	LDX	#$80
 	LDA	#$01
@@ -388,7 +392,7 @@ L829B	LDX	L40CB
 L82AD	RTS
 	.byte	$85
 L82AF	.byte	$80,$A5 ; (undocumented opcode) - NOP	#$A5
-	SAX	(L0085,X)	; (undocumented opcode)
+	.byte	$83,$85 ; (undocumented opcode) - SAX (L0085,X)
 	INC	L85A5,X
 	STA	FPTR2+1
 	LDX	#$00
@@ -2005,6 +2009,7 @@ L8FA1	.byte	$00 ; Screen code for ' '
 	.byte	$04 ; Screen code for '$'
 	.byte	$07 ; Screen code for '''
 	.byte	$04 ; Screen code for '$'
+; Small math/projection lookup tables.
 L90A1	.byte	$00 ; Screen code for ' '
 	.byte	$20 ; ' ' ; Screen code for '@'
 	.byte	$40 ; '@'
@@ -2372,6 +2377,7 @@ L9325	RTS
 L9326	SEC
 	SBC	#$80
 	RTS
+; Lookup table used by the preceding adjustment routine.
 L932A	.byte	$00 ; Screen code for ' '
 	.byte	$02 ; Screen code for '"'
 	.byte	$03 ; Screen code for '#'

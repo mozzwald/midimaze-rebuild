@@ -1,12 +1,16 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 14: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Contains drawing/game support code and data tables.
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
+; Bank map (working):
+;   $8000-$9FFF  Drawing/game support code mixed with data tables.
 
-RTCLOK	= $0012
-ICHIDZ	= $0020
 L0080	= $0080
 L0081	= $0081
 L0083	= $0083
@@ -65,12 +69,6 @@ L00D0	= $00D0
 L00D1	= $00D1
 L00D2	= $00D2
 L00D3	= $00D3
-FR0	= $00D4
-FRE	= $00DA
-FR1	= $00E0
-FR2	= $00E6
-FRX	= $00EC
-EEXP	= $00ED
 L1B30	= $1B30
 L2DF6	= $2DF6
 L3800	= $3800
@@ -171,8 +169,8 @@ LA858	= $A858
 LA85C	= $A85C
 LA888	= $A888
 LAB2D	= $AB2D
-LAF1D	= $AF1D
-LAF36	= $AF36
+BANK_CALL_INDEXED	= $AF1D
+BANK_RETURN	= $AF36
 LB1B6	= $B1B6
 LC003	= $C003
 LCA85	= $CA85
@@ -183,7 +181,7 @@ START1	LDA	#$00
 	STA	L3CB9
 	STA	L3CC2
 	STA	L3CCB
-	JMP	LAF36
+	JMP	BANK_RETURN
 	.byte	$A2
 L8012	.byte	$0F,$A9,$00 ; (undocumented opcode) - SLO L00A9
 L8015	STA	L3DD8,X
@@ -192,7 +190,7 @@ L8015	STA	L3DD8,X
 	BPL	L8015
 	JSR	L882D
 	LDX	#$00
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	DEC	L00B6
 	BMI	L8061
 L802A	LDX	L00B6
@@ -219,8 +217,8 @@ L805A	JSR	L992C
 	DEC	L00B6
 	BPL	L802A
 L8061	LDX	#$01
-	JSR	LAF1D
-	JMP	LAF36
+	JSR	BANK_CALL_INDEXED
+	JMP	BANK_RETURN
 L8069	LDA	L3F0D
 	BEQ	L8071
 	JMP	L80BA
@@ -841,7 +839,7 @@ L835E	CMP	L2DF6
 	.byte	$5A ; (undocumented opcode) - NOP
 	STA	(L00BE),Y
 L8364	ADC	L8383
-	SAX	(L0084,X)	; (undocumented opcode)
+	.byte	$83,$84 ; (undocumented opcode) - SAX (L0084,X)
 	STY	L0084
 	STY	L0083
 	LDY	#$00
@@ -4246,7 +4244,7 @@ L9911	INX
 	CMP	LCFD4,Y
 	DEX
 	CMP	L00C0
-	LAS	LB1B6,Y	; (undocumented opcode)
+	.byte	$BB,$B6,$B1 ; (undocumented opcode) - LAS LB1B6,Y
 	LDY	LA2A7
 	STA	L9398,X
 L9923	STX	L3FFF
@@ -5060,7 +5058,7 @@ L9D44	LDA	#$AA
 L9D58	DEC	L00B6
 	BNE	L9D44
 	BEQ	L9D61
-	JMP	LAF36
+	JMP	BANK_RETURN
 L9D61	SEC
 	LDA	L008E
 	SBC	#$85
@@ -5087,23 +5085,23 @@ L9D70	LDA	L9DD2,Y
 	DEC	L00B0
 	BNE	L9D70
 L9D91	LDX	#$01
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	CLC
 	LDA	RTCLOK+2
 	ADC	#$0F
 	STA	L3ECD
 L9D9E	LDX	#$0D
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDX	#$13
-	JSR	LAF1D
+	JSR	BANK_CALL_INDEXED
 	LDA	L3ED2
 	BNE	L9DB9
 	LDA	RTCLOK+2
 	CMP	L3ECD
 	BMI	L9D9E
 	LDX	#$01
-	JSR	LAF1D
-L9DB9	JMP	LAF36
+	JSR	BANK_CALL_INDEXED
+L9DB9	JMP	BANK_RETURN
 	.byte	$00 ; Screen code for ' '
 	.byte	$0F ; Screen code for '/'
 	.byte	$0E ; Screen code for '.'

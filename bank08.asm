@@ -1,8 +1,14 @@
 	opt h-
 
+	icl "include/atari_os.inc"
+	icl "include/hardware.inc"
+	icl "include/cartridge.inc"
+
 ; Bank 08: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Treated as packed graphics/data. It is intentionally emitted as bytes
 ; until the structure is proven and can be named without changing output.
+; Bank map:
+;   $8000-$9FFF  Packed byte data emitted verbatim.
 
 	org $8000
 	.byte	$0F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$0F,$7F,$7F,$7F,$7F,$7F,$7F,$7F ; $8000
