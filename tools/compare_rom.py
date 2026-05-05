@@ -5,11 +5,76 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 from pathlib import Path
 
 
 BANK_SIZE = 0x2000
 DEFAULT_ORIGINAL = Path("ref/MIDI Maze-Original.rom")
+DEFAULT_LISTINGS = Path("build")
+DEFAULT_BANK_SOURCE_DIR = Path("src/banks")
+OPCODES = {
+    "ADC",
+    "AND",
+    "ASL",
+    "BCC",
+    "BCS",
+    "BEQ",
+    "BIT",
+    "BMI",
+    "BNE",
+    "BPL",
+    "BRK",
+    "BVC",
+    "BVS",
+    "CLC",
+    "CLD",
+    "CLI",
+    "CLV",
+    "CMP",
+    "CPX",
+    "CPY",
+    "DEC",
+    "DEX",
+    "DEY",
+    "EOR",
+    "INC",
+    "INX",
+    "INY",
+    "JMP",
+    "JSR",
+    "LDA",
+    "LDX",
+    "LDY",
+    "LSR",
+    "NOP",
+    "ORA",
+    "PHA",
+    "PHP",
+    "PLA",
+    "PLP",
+    "ROL",
+    "ROR",
+    "RTI",
+    "RTS",
+    "SBC",
+    "SEC",
+    "SED",
+    "SEI",
+    "STA",
+    "STX",
+    "STY",
+    "TAX",
+    "TAY",
+    "TSX",
+    "TXA",
+    "TXS",
+    "TYA",
+}
+LISTING_LINE_RE = re.compile(
+    r"^\s*(?P<source_line>\d+)\s+(?P<addr>[0-9A-F]{4})\s+"
+    r"(?P<bytes>(?:[0-9A-F]{2}\s*){1,3})(?P<text>.*)$"
+)
 
 
 def mapped_addr(bank: int, offset: int) -> int:
@@ -44,6 +109,57 @@ def compare_bytes(actual: bytes, expected: bytes, base_offset: int) -> tuple[int
     return base_offset + first_diff, diff_count
 
 
+def label_from_listing_text(text: str) -> str | None:
+    stripped = text.strip()
+    if not stripped or stripped.startswith(";") or stripped.startswith("."):
+        return None
+
+    token = stripped.split()[0].rstrip(":")
+    if token.upper() in OPCODES:
+        return None
+    if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", token):
+        return None
+    return token
+
+
+def listing_context(listings_dir: Path, source_dir: Path, bank: int, cpu_addr: int) -> str | None:
+    listing = listings_dir / f"bank{bank:02d}.lst"
+    if not listing.exists():
+        return None
+
+    nearest: tuple[int, int, str] | None = None
+    nearest_label: tuple[int, str] | None = None
+
+    for line in listing.read_text(errors="replace").splitlines():
+        match = LISTING_LINE_RE.match(line)
+        if not match:
+            continue
+
+        addr = int(match.group("addr"), 16)
+        if addr > cpu_addr:
+            break
+
+        source_line = int(match.group("source_line"))
+        text = match.group("text").strip()
+        nearest = (addr, source_line, text)
+
+        label = label_from_listing_text(match.group("text"))
+        if label is not None:
+            nearest_label = (addr, label)
+
+    if nearest is None:
+        return None
+
+    addr, source_line, text = nearest
+    context = f"{source_dir / f'bank{bank:02d}.asm'}:{source_line}, listing CPU ${addr:04X}"
+    if nearest_label is not None:
+        label_addr, label = nearest_label
+        context += f", nearest label {label} (${label_addr:04X})"
+    if text:
+        context += f" | {text}"
+    return context
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("actual", type=Path, help="rebuilt ROM or bank binary")
@@ -59,6 +175,21 @@ def main() -> int:
         choices=range(16),
         metavar="0-15",
         help="compare actual file against one 8 KiB bank from the original ROM",
+    )
+    parser.add_argument(
+        "--listings",
+        type=Path,
+        default=DEFAULT_LISTINGS,
+        help=(
+            "directory containing MADS bankXX.lst files for source context, "
+            f"default: {DEFAULT_LISTINGS}"
+        ),
+    )
+    parser.add_argument(
+        "--source-dir",
+        type=Path,
+        default=DEFAULT_BANK_SOURCE_DIR,
+        help=f"bank source directory for listing context, default: {DEFAULT_BANK_SOURCE_DIR}",
     )
     args = parser.parse_args()
 
@@ -95,6 +226,17 @@ def main() -> int:
     print(f"First:    file offset ${first_diff:05X} ({describe_offset(first_diff)})")
     print(f"Bytes:    actual {actual_text}, expected {expected_text}")
     print(f"Count:    {diff_count} differing byte positions, including size delta")
+
+    diff_bank = first_diff // BANK_SIZE
+    bank_offset = first_diff % BANK_SIZE
+    source_context = listing_context(
+        args.listings,
+        args.source_dir,
+        diff_bank,
+        mapped_addr(diff_bank, bank_offset),
+    )
+    if source_context is not None:
+        print(f"Source:   {source_context}")
     return 1
 
 

@@ -6765,12 +6765,12 @@ LBB85	.byte	$01 ; Screen code for '!'
 	.byte	$BF
 CART_STRT	LDX	#$12
 	JSR	BANK_CALL_INDEXED
-	JSR	LBEFD
+	JSR	MIDI_INSTALL
 LBE1A	LDA	RANDOM
 	STA	COLBK
-	JSR	LBEF7
+	JSR	MIDI_RX_COUNT
 	BEQ	LBE1A
-	JSR	LBEE9
+	JSR	MIDI_READ_BYTE_BLOCKING
 	CMP	#$00
 	BEQ	LBE63
 	CMP	#$01
@@ -6785,9 +6785,9 @@ LBE1A	LDA	RANDOM
 	STA	L0087
 LBE40	LDA	RANDOM
 	STA	COLPF1
-	JSR	LBEF7
+	JSR	MIDI_RX_COUNT
 	BEQ	LBE40
-	JSR	LBEE9
+	JSR	MIDI_READ_BYTE_BLOCKING
 	LDY	#$00
 	STA	(L0087),Y
 	CLC
@@ -6796,10 +6796,10 @@ LBE40	LDA	RANDOM
 	INC	L0087
 	BNE	LBE40
 	LDA	L0089
-	JSR	LBEC7
+	JSR	MIDI_SEND_BYTE
 	JMP	LBE1A
 LBE63	LDA	#$FF
-	JSR	LBEC7
+	JSR	MIDI_SEND_BYTE
 	JMP	LBE1A
 LBE6B	JSR	LBE91
 	JSR	LBE74
@@ -6808,22 +6808,22 @@ LBE74	JMP	(L0087)
 LBE77	JSR	LBE91
 	LDY	#$00
 	LDA	(L0087),Y
-	JSR	LBEC7
+	JSR	MIDI_SEND_BYTE
 	JMP	LBE1A
 LBE84	JSR	LBE91
-	JSR	LBEE9
+	JSR	MIDI_READ_BYTE_BLOCKING
 	LDY	#$00
 	STA	(L0087),Y
 	JMP	LBE1A
-LBE91	JSR	LBEE9
+LBE91	JSR	MIDI_READ_BYTE_BLOCKING
 	STA	L0087
-	JSR	LBEE9
+	JSR	MIDI_READ_BYTE_BLOCKING
 	STA	L0088
 	RTS
 	.byte	$98
 ; VSERIN handler: read POKEY SERIN into the RX ring buffer.
 ; Indexes intentionally wrap as 8-bit values.
-LBE9D	PHA
+MIDI_RX_ISR	PHA
 	LDA	SERIN
 	LDY	L0082
 	STA	L2D00,Y
@@ -6835,7 +6835,7 @@ LBE9D	PHA
 	.byte	$98
 ; VSEROR handler: feed the next queued TX byte to POKEY SEROUT.
 ; When the TX ring is empty, L0086 is cleared to mark the transmitter idle.
-LBEAD	PHA
+MIDI_TX_ISR	PHA
 	LDY	L0084
 	CPY	L0085
 	BEQ	LBEBF
@@ -6851,7 +6851,7 @@ LBEC3	PLA
 	RTI
 ; Queue one byte for MIDI transmit. If the transmitter is idle, the byte
 ; is written directly to SEROUT; otherwise it is appended to the TX ring.
-LBEC7	SEI
+MIDI_SEND_BYTE	SEI
 	LDY	L0086
 	BNE	LBED5
 	STA	SEROUT
@@ -6873,21 +6873,21 @@ LBEDE	TYA
 	RTS
 ; Blocking MIDI receive: wait until RX read and write indexes differ,
 ; then return the next byte from the RX ring.
-LBEE9	LDY	L0083
+MIDI_READ_BYTE_BLOCKING	LDY	L0083
 	CPY	L0082
-	BEQ	LBEE9
+	BEQ	MIDI_READ_BYTE_BLOCKING
 	LDA	L2D00,Y
 	INC	L0083
 	LDY	#$00
 	RTS
 ; Return RX ring occupancy as write-minus-read with natural 8-bit wrap.
-LBEF7	LDA	L0083
+MIDI_RX_COUNT	LDA	L0083
 	SEC
 	SBC	L0082
 	RTS
 ; Install custom MIDI/SIO handlers and program POKEY for direct serial I/O.
 ; This bypasses normal CIO/SIO transfer routines and hooks OS serial vectors.
-LBEFD	SEI
+MIDI_INSTALL	SEI
 	LDA	#$3C
 	STA	PACTL
 	LDA	#$3C
@@ -6897,6 +6897,10 @@ LBF0A	LDA	VSERIN,Y
 	STA	L3DF8,Y
 	DEY
 	BPL	LBF0A
+; Install VSERIN = MIDI_RX_ISR ($BE9C/$BE9D entry sequence) and
+; VSEROR = MIDI_TX_ISR ($BEAC/$BEAD entry sequence). The preceding
+; saved Y byte is preserved as raw data, so the vector targets the
+; byte before the visible handler label.
 	LDA	#$9C
 	STA	VSERIN
 	LDA	#$BE
@@ -6937,8 +6941,8 @@ LBF2B	STA	L0082,Y
 LBF68	STX	L00D0
 	.byte	$FC,$A0,$53 ; (undocumented opcode) - NOP	$53A0,X
 ; Remove the custom MIDI/SIO handlers and restore saved OS serial vectors.
-LBF6D	DEY
-	BNE	LBF6D
+MIDI_REMOVE	DEY
+	BNE	MIDI_REMOVE
 	LDA	#$3C
 	STA	PACTL
 	LDA	POKMSK
