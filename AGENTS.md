@@ -21,6 +21,26 @@ If file names differ, locate the closest equivalent before making changes.
 
 Make small, testable changes. Prefer mechanical conversion over interpretation.
 
+## Readability and renaming roadmap
+
+The persistent readability plan is `ref/READABILITY_RENAME_PLAN.md`.
+
+When doing any work whose purpose is to make the disassembly more human
+readable:
+
+1. Read `ref/READABILITY_RENAME_PLAN.md` before editing source.
+2. Pick the first unchecked item that has enough evidence to complete safely.
+3. Keep the edit narrow: comments first, then names only when behavior is
+   proven by call sites, tables, cross-references, or emulator traces.
+4. Run `make compare` after each rename/comment batch.
+5. Update `ref/READABILITY_RENAME_PLAN.md` by checking completed items and
+   adding notes when new evidence changes the plan.
+6. Update `docs/symbols.md` and `include/*.inc` when a name becomes stable
+   enough to reuse across banks.
+
+Do not rename broad sets of labels simply for aesthetics. Human-readable names
+must improve understanding while preserving byte-exact output.
+
 For each change:
 
 1. Assemble the ROM.
