@@ -96,8 +96,6 @@ L1AD0	= $1AD0
 L20A2	= $20A2
 L28A9	= $28A9
 L2F00	= $2F00
-L3971	= $3971
-L3A52	= $3A52
 L3DF8	= $3DF8
 L4720	= $4720
 L5B00	= $5B00
@@ -3212,11 +3210,11 @@ LAD4F	.byte	$30 ; '0' ; Screen code for 'P'
 	.byte	$39 ; '9' ; Screen code for 'Y'
 	.byte	$60
 LAD9A	TAX
-	LDA	L3A52,X
+	LDA	MAZE_CELL_PLAYER_NEXT,X
 	CMP	#$FF
 	BNE	LAD9A
-	LDA	L3971
-	STA	L3A52,X
+	LDA	MAZE_LINK_PLAYER_INDEX
+	STA	MAZE_CELL_PLAYER_NEXT,X
 	RTS
 	.byte	$A0
 	.byte	$20 ; ' ' ; Screen code for '@'

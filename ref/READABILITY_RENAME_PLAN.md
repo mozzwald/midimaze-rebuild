@@ -118,21 +118,23 @@ Verification gate:
 
 Goal: make per-player and per-roster arrays readable.
 
-- [ ] Identify `$3968-$3971` core player/setup scalar fields.
-- [ ] Map the `$39B2-$3B62` arrays, especially the repeating `$10`-spaced
+- [x] Identify `$3968-$3971` core player/setup scalar fields.
+  - Promoted the proven scalars and `MAZE_LINK_PLAYER_INDEX`; left `L396C`,
+    `L396D`, and `L3970` generated until their setup-flow roles are stronger.
+- [x] Map the `$39B2-$3B62` arrays, especially the repeating `$10`-spaced
   player/roster fields.
-- [ ] Map `$3A02`, `$3A12`, `$3A22`, `$3A32`, `$3A52`, `$3A72`, `$3A82`,
+- [x] Map `$3A02`, `$3A12`, `$3A22`, `$3A32`, `$3A52`, `$3A72`, `$3A82`,
   `$3A92`, `$3AA2`, `$3AB2`, `$3AC2`, `$3AF2`, `$3B02`, `$3B12`, `$3B22`,
   `$3B32`, `$3B42`, `$3B52`, `$3B62`.
-- [ ] Cross-check these arrays against setup payload order and gameplay
+- [x] Cross-check these arrays against setup payload order and gameplay
   parameter relay code in bank 12.
-- [ ] Add array names to `include/game_ram.inc` when stable.
-- [ ] Update protocol comments in bank 12 to use the array names.
+- [x] Add array names to `include/game_ram.inc` when stable.
+- [x] Update protocol comments in bank 12 to use the array names.
 
 Verification gate:
 
-- [ ] `make compare` exact after Phase 4.
-- [ ] A table in `docs/symbols.md` maps each named player/roster array to its
+- [x] `make compare` exact after Phase 4.
+- [x] A table in `docs/symbols.md` maps each named player/roster array to its
   address, stride, observed payload order, and role.
 
 ## Phase 5: UI, Message, And Menu Labels
