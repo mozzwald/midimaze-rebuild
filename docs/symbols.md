@@ -158,6 +158,27 @@ Observed zero-page usage in this path:
 These `L00xx` names are still left as generated labels in source because they
 may be reused as scratch storage outside the MIDI path.
 
+## Fixed-Bank Helpers
+
+These labels are resident in bank 15 and exported through
+`include/fixed_bank.inc` for switchable banks. They replace generated helper
+names from the original disassembly.
+
+| Name | Address | Inputs and scratch | Return / flags | Notes |
+|---|---:|---|---|---|
+| `MIDI_RX_READ_BLOCKING` | `$AF76` | `L00B1` RX write index, `L00B2` RX read index, `$2F00` RX ring | `A` = byte read; `L00B2` increments; waits until data is present | Direct custom MIDI/POKEY ring helper. |
+| `MIDI_RX_HAS_BYTE` | `$AF82` | `L00B1`, `L00B2` | Z set when empty, Z clear when unread bytes exist | Non-blocking RX poll used before `MIDI_RX_READ_BLOCKING`. |
+| `NET_SERVICE_WAIT_POLL` | `$AF87` | `L00B3` clock, `L3ED0` timeout ticks, callback vectors | Clears `NET_ERROR_CODE` on timeout; otherwise preserves callback status | Polls bank-call slot `$0D` while waiting on `NET_CALL_VECTOR_2`, then calls `NET_CALL_VECTOR_0`. |
+| `NET_VECTOR_WAIT_POLL` | `$AFAE` | same timeout/vector state | Sets `NET_ERROR_CODE = $C7` on timeout; returns `NET_ERROR_CODE` in `Y` after callback | Similar wait loop, but polls slot `$0D` only while vector 2 is not ready. |
+| `NET_CALL_VECTOR_0`..`NET_CALL_VECTOR_6` | `$AFDA-$AFEC` | vector words at `$3ED3/$3ED5/$3ED7/$3ED9/$3EDB/$3EDD/$3EDF` | Whatever the selected callback returns | Bank 12 patches these vector words for setup/gameplay modes. |
+| `WAIT_FOR_RTC_TICK` | `$AFEF` | `RTCLOK+2` | returns after `RTCLOK+2` changes | Frame pacing helper; does not touch `NET_ERROR_CODE`. |
+| `PACK_DIRECTION_TO_STATUS_BITS` | `$AFF6` | `A` direction/status byte, scratch `L0080`, table `DIRECTION_STATUS_BITS_A` | `A` = input with bits 5/6 replaced from rotated direction bits | Used when packing player/status direction bytes. |
+| `ROTATE_DIRECTION_TO_STATUS_BITS` | `$B00B` | `A` direction/status byte, scratch `L0080`, table `DIRECTION_STATUS_BITS_B` | `A` = input with alternate bits 5/6 encoding | Companion direction/status packing helper. |
+| `PLAYER_RECORD_OFFSET_TABLE` | `$B0AE` | `X` player index at callers | table read only | Offsets into packed per-player records used by bank 4 and bank 12 roster/status paths. |
+| `PLAYER_RECORD_LENGTH_TABLE` | `$B0BE` | table read only | table read only | Small size/length lookup adjacent to the offset table. |
+| `CLEAR_STATUS_LINE_BUFFERS` | `$B0C7` | none | clears `$72C0-$72CF` and `$72D0-$72DF`; `A=0`, `X=$FF` | Used before writing status/error/menu message buffers. |
+| `MARK_STATUS_LINE_DIRTY` | `$B0D5` | `$72C0-$72DF` | sets bit 7 across the 32-byte status line region; `X=$FF` | Marks status/message bytes for display update. |
+
 ## Network Setup And Gameplay Protocol
 
 These names are based on the reverse-engineering notes in `ref/` and matched

@@ -72,23 +72,23 @@ Verification gate:
 Goal: make resident services in bank 15 readable and safe to call from named
 banked code.
 
-- [ ] Comment and name helper routines around `$AF76-$B03F`.
-  - Current generated labels of interest: `LAF76`, `LAF82`, `LAF87`, `LAFAE`,
+- [x] Comment and name helper routines around `$AF76-$B03F`.
+  - Former generated labels of interest: `LAF76`, `LAF82`, `LAF87`, `LAFAE`,
     `LAFDA`, `LAFDD`, `LAFE0`, `LAFE3`, `LAFE9`, `LAFEC`, `LAFEF`, `LAFF6`,
     `LB0AE`, `LB0C7`, `LB0D5`.
-- [ ] For each helper, document:
+- [x] For each helper, document:
   - Inputs in `A`, `X`, `Y`, and zero page.
   - Return value and flags.
   - Error behavior through `NET_ERROR_CODE`.
   - Whether it calls through vectors or bank-call slots.
-- [ ] Promote confirmed helper names into `include/fixed_bank.inc`.
-- [ ] Replace generated helper labels in all banks with the shared names.
-- [ ] Update `docs/symbols.md` with fixed-bank helper notes.
+- [x] Promote confirmed helper names into `include/fixed_bank.inc`.
+- [x] Replace generated helper labels in all banks with the shared names.
+- [x] Update `docs/symbols.md` with fixed-bank helper notes.
 
 Verification gate:
 
-- [ ] `make compare` exact after Phase 2.
-- [ ] No old fixed-bank helper labels remain in active code except in comments
+- [x] `make compare` exact after Phase 2.
+- [x] No old fixed-bank helper labels remain in active code except in comments
   preserving historical context.
 
 ## Phase 3: Network And Setup State Map
@@ -101,8 +101,9 @@ names where proven.
     fields.
 - [ ] Map `$3F07-$3F13` setup flags and bot/player fields.
 - [ ] Map `$3CE6-$3D39` setup/roster buffers.
-- [ ] Confirm and name vector storage used by `LAFDA`, `LAFDD`, `LAFE0`, and
-  related fixed-bank indirect jumps.
+- [ ] Confirm and name vector storage used by `NET_CALL_VECTOR_0`,
+  `NET_CALL_VECTOR_1`, `NET_CALL_VECTOR_2`, and related fixed-bank indirect
+  jumps.
 - [ ] Promote cross-bank state names into `include/game_ram.inc`.
 - [ ] Replace generated labels with names only after the state role is clear.
 - [ ] Add a `Network State Map` section to `docs/symbols.md`.

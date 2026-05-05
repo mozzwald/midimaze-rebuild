@@ -111,6 +111,7 @@ L5F00	= $5F00
 L6C3E	= $6C3E
 L7024	= $7024
 L72C0	= $72C0
+L72D0	= $72D0
 LD0B1	= $D0B1 ; GTIA mirror/open-bus-looking address used only in raw byte comment.
 LE520	= $E520 ; OS ROM routine, exact purpose not yet verified.
 	org $A000
@@ -3560,68 +3561,77 @@ LAF42	.byte	$87,$86 ; (undocumented opcode) - SAX L0086
 	.byte	$A0
 	.byte	$00 ; Screen code for ' '
 	.byte	$60
-LAF76	LDX	L00B2
-LAF78	CPX	L00B1
-	BEQ	LAF78
+; Blocking read from the custom MIDI RX ring. Waits until L00B1/L00B2 differ,
+; increments the read index, and returns the byte from $2F00,X in A.
+MIDI_RX_READ_BLOCKING	LDX	L00B2
+MIDI_RX_READ_WAIT	CPX	L00B1
+	BEQ	MIDI_RX_READ_WAIT
 	INC	L00B2
 	LDA	L2F00,X
 	RTS
-	.byte	$A5
-	.byte	$B2
-	.byte	$C5
-	.byte	$B1
-	.byte	$60
-LAF87	CLC
+; Poll the custom MIDI RX ring. Returns with Z set when empty and clear when
+; unread bytes are available. A is L00B2 on return; X/Y are preserved.
+MIDI_RX_HAS_BYTE	LDA	L00B2
+	CMP	L00B1
+	RTS
+; Service slot $0D until NET_CALL_VECTOR_2 reports ready or L3ED0 ticks pass.
+; On timeout clears NET_ERROR_CODE; otherwise calls NET_CALL_VECTOR_0 and
+; returns its Y/status convention unchanged.
+NET_SERVICE_WAIT_POLL	CLC
 	LDA	L00B3
 	ADC	L3ED0
 	STA	L3ECF
-LAF90	LDX	#$0D
+NET_SERVICE_WAIT_LOOP	LDX	#$0D
 	JSR	BANK_CALL_INDEXED
-	JSR	LAFE0
-	BEQ	LAFA1
-	JSR	LAFDA
-	BNE	LAFAD
-	BEQ	LAF87
-LAFA1	LDA	L00B3
+	JSR	NET_CALL_VECTOR_2
+	BEQ	NET_SERVICE_WAIT_TIMEOUT_TEST
+	JSR	NET_CALL_VECTOR_0
+	BNE	NET_SERVICE_WAIT_DONE
+	BEQ	NET_SERVICE_WAIT_POLL
+NET_SERVICE_WAIT_TIMEOUT_TEST	LDA	L00B3
 	CMP	L3ECF
-	BMI	LAF90
+	BMI	NET_SERVICE_WAIT_LOOP
 	LDA	#$00
 	STA	NET_ERROR_CODE
-LAFAD	RTS
-	.byte	$18 ; Screen code for '8'
-LAFAF	LDA	L00B3
+NET_SERVICE_WAIT_DONE	RTS
+; Wait for NET_CALL_VECTOR_2 to report ready while polling slot $0D. If the
+; timeout expires, stores $C7 in NET_ERROR_CODE. On success, calls
+; NET_CALL_VECTOR_0 and returns NET_ERROR_CODE in Y.
+NET_VECTOR_WAIT_POLL	CLC
+	LDA	L00B3
 	ADC	L3ED0
 	STA	L3ECF
-LAFB7	JSR	LAFE0
-	BNE	LAFD3
+NET_VECTOR_WAIT_LOOP	JSR	NET_CALL_VECTOR_2
+	BNE	NET_VECTOR_READY
 	LDA	NET_ERROR_CODE
-	BNE	LAFD2
+	BNE	NET_VECTOR_WAIT_DONE
 	LDX	#$0D
 	JSR	BANK_CALL_INDEXED
 	LDA	L00B3
 	CMP	L3ECF
-	BMI	LAFB7
+	BMI	NET_VECTOR_WAIT_LOOP
 	LDA	#$C7
 	STA	NET_ERROR_CODE
-LAFD2	RTS
-LAFD3	JSR	LAFDA
+NET_VECTOR_WAIT_DONE	RTS
+NET_VECTOR_READY	JSR	NET_CALL_VECTOR_0
 	LDY	NET_ERROR_CODE
 	RTS
-LAFDA	JMP	($3ED3)
-	.byte	$6C ; 'l'
-	.byte	$D5
-	.byte	$3E ; '>'
-LAFE0	JMP	($3ED7)
-	.byte	$6C ; 'l'
-LAFE4	CMP	L6C3E,Y
-	.byte	$DB,$3E,$6C ; (undocumented opcode) - DCP L6C3E,Y
-	CMP	L6C3E,X
-	.byte	$DF,$3E ; (undocumented opcode) - DCP LA53E,X
-LAFEF	.byte	$A5
-	.byte	$14,$C5 ; (undocumented opcode) - NOP	L00C5,X
-	.byte	$14,$F0 ; (undocumented opcode) - NOP	$F0,X
-	.byte	$FC,$60,$85 ; (undocumented opcode) - NOP	$8560,X
-	.byte	$80,$2A ; (undocumented opcode) - NOP	#$2A
+; Indirect callback vectors populated by bank 12 setup/gameplay modes.
+NET_CALL_VECTOR_0	JMP	($3ED3)
+NET_CALL_VECTOR_1	JMP	($3ED5)
+NET_CALL_VECTOR_2	JMP	($3ED7)
+NET_CALL_VECTOR_3	JMP	($3ED9)
+NET_CALL_VECTOR_4	JMP	($3EDB)
+NET_CALL_VECTOR_5	JMP	($3EDD)
+NET_CALL_VECTOR_6	JMP	($3EDF)
+; Wait until RTCLOK+2 changes. Used to pace UI/frame-visible operations.
+WAIT_FOR_RTC_TICK	LDA	RTCLOK+2
+WAIT_FOR_RTC_TICK_LOOP	CMP	RTCLOK+2
+	BEQ	WAIT_FOR_RTC_TICK_LOOP
+	RTS
+; Encode direction bits from A into the status-bit field kept in L0080.
+PACK_DIRECTION_TO_STATUS_BITS	STA	L0080
+	ROL
 	ROL
 	ROL
 	ROL
@@ -3629,13 +3639,13 @@ LAFEF	.byte	$A5
 	TAX
 	LDA	L0080
 	AND	#$9F
-	ORA	LB007,X
+	ORA	DIRECTION_STATUS_BITS_A,X
 	RTS
-LB007	.byte	$40 ; '@'
+DIRECTION_STATUS_BITS_A	.byte	$40 ; '@'
 	.byte	$00 ; Screen code for ' '
 	.byte	$20 ; ' ' ; Screen code for '@'
 	.byte	$60
-LB00B	STA	L0080
+ROTATE_DIRECTION_TO_STATUS_BITS	STA	L0080
 	ROL
 	ROL
 	ROL
@@ -3644,9 +3654,9 @@ LB00B	STA	L0080
 	TAX
 	LDA	L0080
 	AND	#$9F
-	ORA	LB01C,X
+	ORA	DIRECTION_STATUS_BITS_B,X
 	RTS
-LB01C	.byte	$20 ; ' ' ; Screen code for '@'
+DIRECTION_STATUS_BITS_B	.byte	$20 ; ' ' ; Screen code for '@'
 	.byte	$40 ; '@'
 	.byte	$00 ; Screen code for ' '
 	.byte	$60
@@ -3779,7 +3789,7 @@ LB03F	.byte	$00 ; Screen code for ' '
 	.byte	$04 ; Screen code for '$'
 	.byte	$27 ; ''' ; Screen code for 'G'
 	.byte	$80
-	.byte	$00 ; Screen code for ' '
+PLAYER_RECORD_OFFSET_TABLE	.byte	$00 ; Screen code for ' '
 	.byte	$0B ; Screen code for '+'
 	.byte	$16 ; Screen code for '6'
 	.byte	$21 ; '!' ; Screen code for 'A'
@@ -3795,7 +3805,7 @@ LB03F	.byte	$00 ; Screen code for ' '
 	.byte	$8F
 	.byte	$9A
 	.byte	$A5
-	.byte	$00 ; Screen code for ' '
+PLAYER_RECORD_LENGTH_TABLE	.byte	$00 ; Screen code for ' '
 	.byte	$01 ; Screen code for '!'
 	.byte	$02 ; Screen code for '"'
 	.byte	$02 ; Screen code for '"'
@@ -3804,27 +3814,22 @@ LB03F	.byte	$00 ; Screen code for ' '
 	.byte	$09 ; Screen code for ')'
 	.byte	$0C ; Screen code for ','
 	.byte	$10 ; Screen code for '0'
-	.byte	$A2
-	.byte	$0F ; Screen code for '/'
-	.byte	$A9
-	.byte	$00 ; Screen code for ' '
-	.byte	$9D
-	.byte	$C0
-	.byte	$72 ; 'r'
-	.byte	$9D
-	.byte	$D0
-	.byte	$72 ; 'r'
-	.byte	$CA
-	.byte	$10 ; Screen code for '0'
-	.byte	$F7
-	.byte	$60
-LB0D5	LDX	#$1F
+; Clear the two 16-byte status/message line buffers at $72C0 and $72D0.
+CLEAR_STATUS_LINE_BUFFERS	LDX	#$0F
 	LDA	#$00
-LB0D9	LDA	L72C0,X
+CLEAR_STATUS_LINE_BUFFERS_LOOP	STA	L72C0,X
+	STA	L72D0,X
+	DEX
+	BPL	CLEAR_STATUS_LINE_BUFFERS_LOOP
+	RTS
+; Mark the 32-byte status/message line region dirty by setting bit 7.
+MARK_STATUS_LINE_DIRTY	LDX	#$1F
+	LDA	#$00
+MARK_STATUS_LINE_DIRTY_LOOP	LDA	L72C0,X
 	ORA	#$80
 	STA	L72C0,X
 	DEX
-	BPL	LB0D9
+	BPL	MARK_STATUS_LINE_DIRTY_LOOP
 	RTS
 	.byte	$A2
 LB0E6	JSR	IOCB6+9
@@ -4450,7 +4455,7 @@ LB3A6	STA	(L0080),Y
 	STA	VDSLST+1
 	LDA	#$40
 	STA	NMIEN
-	JSR	LAFEF
+	JSR	WAIT_FOR_RTC_TICK
 	LDA	#$0A
 	STA	COLOR0
 	LDA	#$06
@@ -4465,7 +4470,7 @@ LB3A6	STA	(L0080),Y
 	STA	GRACTL
 	LDA	#$C0
 	STA	NMIEN
-	JSR	LAFEF
+	JSR	WAIT_FOR_RTC_TICK
 	LDX	#$00
 	TXA
 LB49B	STA	L5B00,X
