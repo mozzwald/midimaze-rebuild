@@ -4,6 +4,7 @@
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
 	icl "include/game_ram.inc"
+	icl "include/fixed_bank.inc"
 
 ; Bank 04: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; This bank is mostly executable game logic with embedded tables.
@@ -121,8 +122,6 @@ L7361	= $7361
 L7362	= $7362
 L7363	= $7363
 L7370	= $7370
-BANK_CALL_INDEXED	= $AF1D
-BANK_RETURN	= $AF36
 LAF76	= $AF76
 LAF82	= $AF82
 LAFDA	= $AFDA

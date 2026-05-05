@@ -4,6 +4,7 @@
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
 	icl "include/game_ram.inc"
+	icl "include/fixed_bank.inc"
 
 ; Bank 06: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Starts by clearing/initializing RAM regions and then branches into data/code.
@@ -26,7 +27,6 @@ L3500	= $3500
 L3600	= $3600
 L3700	= $3700
 L396F	= $396F
-BANK_RETURN	= $AF36
 	org $8000
 START1	STY	L0080
 	LDX	L0080

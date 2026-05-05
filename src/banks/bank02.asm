@@ -4,6 +4,7 @@
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
 	icl "include/game_ram.inc"
+	icl "include/fixed_bank.inc"
 
 ; Bank 02: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Entry code vectors through fixed-bank routines, followed mostly by data/fill.
@@ -13,7 +14,6 @@
 ;   $8000-$8009  Entry stub into fixed-bank helper routines.
 ;   $800A-$9FFF  Data/fill region preserved as emitted bytes.
 
-BANK_RETURN	= $AF36
 LAF41	= $AF41
 	org $8000
 START1	LDY	#$00

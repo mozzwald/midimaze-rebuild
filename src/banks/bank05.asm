@@ -4,6 +4,7 @@
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
 	icl "include/game_ram.inc"
+	icl "include/fixed_bank.inc"
 
 ; Bank 05: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Contains initialization/OS-facing code and preserved trailing fill.
@@ -99,7 +100,6 @@ LA91E	= $A91E
 LAA20	= $AA20
 LAD02	= $AD02
 LAD23	= $AD23
-BANK_RETURN	= $AF36
 LE4A5	= $E4A5 ; OS ROM table/entry, exact purpose not yet verified.
 LE6D0	= $E6D0 ; OS ROM routine, exact purpose not yet verified.
 LF004	= $F004

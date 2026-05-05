@@ -3653,6 +3653,9 @@ LB01C	.byte	$20 ; ' ' ; Screen code for '@'
 	.byte	$40 ; '@'
 	.byte	$00 ; Screen code for ' '
 	.byte	$60
+; Initialize the 37-entry bank-call table. Each packed entry is:
+;   bank id, target low byte, target high byte.
+; Switchable banks patch selected slots before calling BANK_CALL_INDEXED.
 LB020	LDX	#$00
 	LDY	#$00
 LB024	LDA	LB03F,X

@@ -4,6 +4,7 @@
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
 	icl "include/game_ram.inc"
+	icl "include/fixed_bank.inc"
 
 ; Bank 13: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Contains game support code and data tables.
@@ -130,8 +131,6 @@ LAD00	= $AD00
 LAD6F	= $AD6F
 LAE8B	= $AE8B
 LAEB0	= $AEB0
-BANK_CALL_INDEXED	= $AF1D
-BANK_RETURN	= $AF36
 LC785	= $C785
 	org $8000
 START1	LDA	#$01

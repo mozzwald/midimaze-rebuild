@@ -4,6 +4,7 @@
 	icl "include/hardware.inc"
 	icl "include/cartridge.inc"
 	icl "include/game_ram.inc"
+	icl "include/fixed_bank.inc"
 
 ; Bank 12: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
 ; Contains display/input/game support code with embedded data tables.
@@ -156,8 +157,6 @@ L7A61	= $7A61
 LAD00	= $AD00
 LAD2F	= $AD2F
 LAD4F	= $AD4F
-BANK_CALL_INDEXED	= $AF1D
-BANK_RETURN	= $AF36
 LAF87	= $AF87
 LAFAE	= $AFAE
 LAFDA	= $AFDA
@@ -862,6 +861,9 @@ L85DF	LDA	#$00
 	STA	L3EDE
 	LDA	#$06
 	STA	L3ED0
+; Patch transient bank-call slots for this setup. Slot $11 is pointed at
+; bank-local code selected by L008C; slots $1B and $13 are reset to
+; BANK_RETURN so later indexed calls can fall back through fixed bank.
 L863D	LDX	#$11
 	LDA	#$07
 	STA	BANK_CALL_ADDR_LO,X
@@ -2770,6 +2772,8 @@ L93CF	.byte	$25 ; '%' ; Screen code for 'E'
 	.byte	$64 ; 'd'
 	.byte	$01 ; Screen code for '!'
 	.byte	$FF
+; Repoint volatile bank-call slots used by the following loop. Bank ids not
+; written here intentionally carry the table values initialized in fixed bank.
 L93F8	LDA	#$00
 	STA	L396C
 	LDX	#$11
@@ -2877,6 +2881,7 @@ L94F6	JSR	L92B3
 L94FC	LDX	#$14
 	JSR	BANK_CALL_INDEXED
 	JMP	L9435
+; Same slot patching as L93F8 for the alternate entry into this loop.
 L9504	LDA	#$00
 	STA	L396C
 	LDX	#$11
@@ -2961,6 +2966,8 @@ L95C4	CMP	#$82
 	JMP	L9652
 L95CB	JSR	LB0C7
 	LDX	#$0A
+; Temporarily redirects slot $13 between BANK_RETURN and $8000 while
+; waiting on state in L3ED2.
 L95D0	LDA	L9657,X
 	STA	L72CA,X
 	DEX

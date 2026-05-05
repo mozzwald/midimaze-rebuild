@@ -11,6 +11,8 @@ byte-exact rebuild as the source of truth.
 - `include/cartridge.inc`: cartridge control addresses.
 - `include/game_ram.inc`: confirmed game-private RAM structures used across
   banks.
+- `include/fixed_bank.inc`: resident fixed-bank service entry points called
+  from switchable banks.
 
 These include symbols are intended to be reused across banks. Game-private
 `Lxxxx` labels remain local until their role is proven by cross-references or
