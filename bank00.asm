@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 00: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; This bank is mostly executable game logic with embedded tables.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 L0080	= $0080
 L0083	= $0083
 L0085	= $0085

@@ -1,7 +1,10 @@
 	opt h-
 
+; Bank 08: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Treated as packed graphics/data. It is intentionally emitted as bytes
+; until the structure is proven and can be named without changing output.
+
 	org $8000
-; Original bank 08 is currently treated as packed data.
 	.byte	$0F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$0F,$7F,$7F,$7F,$7F,$7F,$7F,$7F ; $8000
 	.byte	$0F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$07,$7F,$7F,$7F,$7F,$7F,$7F,$7E ; $8010
 	.byte	$07,$7F,$7F,$7F,$7F,$7F,$7F,$7E,$07,$7F,$7F,$7F,$7F,$7F,$7F,$7E ; $8020

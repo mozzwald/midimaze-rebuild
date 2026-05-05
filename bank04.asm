@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 04: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; This bank is mostly executable game logic with embedded tables.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 RTCLOK	= $0012
 L0080	= $0080
 L0081	= $0081

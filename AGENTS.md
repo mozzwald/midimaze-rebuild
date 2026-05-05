@@ -107,7 +107,7 @@ This section covers runime usage of the Atari800 AI interface:
 Launch Atari800 with `-ai`, for example:
 
 ```bash
-atari800-ai -xl -ntsc -ai -cart </path/to/cart.rom>
+atari800-ai -xl -ntsc -ai -cart-type 14 -cart </path/to/cart.rom>
 ```
 
 ### 2. AI JSON Socket Protocol

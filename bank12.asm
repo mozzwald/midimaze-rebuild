@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 12: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Contains display/input/game support code with embedded data tables.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 LINZBS	= $0000
 TSTDAT	= $0007
 POKMSK	= $0010

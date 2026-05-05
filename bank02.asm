@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 02: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Entry code vectors through fixed-bank routines, followed mostly by data/fill.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 LAF36	= $AF36
 LAF41	= $AF41
 	org $8000

@@ -1,5 +1,11 @@
 	opt h-
 
+; Bank 15: fixed 8KB cartridge bank, mapped at $A000-$BFFF.
+; Contains resident cartridge code, OS/hardware setup, bank-switch helpers,
+; and the MIDI/POKEY serial interrupt paths near the end of the bank.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 TSTDAT	= $0007
 WARMST	= $0008
 POKMSK	= $0010
@@ -147,7 +153,7 @@ COLPF1	= $D017
 COLPF2	= $D018
 COLBK	= $D01A
 GRACTL	= $D01D
-LD0B1	= $D0B1
+LD0B1	= $D0B1 ; GTIA mirror/open-bus-looking address used only in raw byte comment.
 AUDF3	= $D204
 AUDC3	= $D205
 AUDF4	= $D206
@@ -165,10 +171,10 @@ PMBASE	= $D407
 WSYNC	= $D40A
 VCOUNT	= $D40B
 NMIEN	= $D40E
-LD500	= $D500
+CART_BANK_SELECT	= $D500 ; CCTL cartridge control region; write selects bank.
 CIOV	= $E456
 SETVBV	= $E45C
-LE520	= $E520
+LE520	= $E520 ; OS ROM routine, exact purpose not yet verified.
 	org $A000
 	.byte	$00 ; Screen code for ' '
 	.byte	$02 ; Screen code for '"'
@@ -2628,7 +2634,7 @@ LAA0C	SEC
 LAA17	JMP	LA975
 LAA1A	PLA
 	STA	L008C
-	STA	LD500
+	STA	CART_BANK_SELECT
 	RTS
 LAA21	SEC
 	LDA	L0092
@@ -2767,7 +2773,7 @@ LAB18	SEC
 LAB23	JMP	LAA37
 LAB26	PLA
 	STA	L008C
-	STA	LD500
+	STA	CART_BANK_SELECT
 	RTS
 	.byte	$85
 LAB2E	CMP	(L008A),Y
@@ -2786,7 +2792,7 @@ LAB3F	STA	L00CB
 	LDA	L008C
 	PHA
 	LDA	#$0B
-	STA	LD500
+	STA	CART_BANK_SELECT
 	STA	L008C
 	LDX	L00D1
 	LDA	LA780,X
@@ -2835,7 +2841,7 @@ LAB3F	STA	L00CB
 	BNE	LABA3
 LAB9C	PLA
 	STA	L008C
-	STA	LD500
+	STA	CART_BANK_SELECT
 	RTS
 LABA3	LDX	FR0+1
 	LDA	LA858,X
@@ -2896,7 +2902,7 @@ LAC03	DEC	L00C7
 LAC12	JMP	LABC5
 LAC15	PLA
 	STA	L008C
-	STA	LD500
+	STA	CART_BANK_SELECT
 	RTS
 	.byte	$00 ; Screen code for ' '
 	.byte	$00 ; Screen code for ' '
@@ -3555,12 +3561,12 @@ LAF1D	LDA	L3D3E,X
 	LDA	L008C
 	PHA
 	STX	L008C
-	STX	LD500
+	STX	CART_BANK_SELECT
 	JMP	(L0087)
 LAF36	STA	L0087
 	PLA
 	STA	L008C
-	STA	LD500
+	STA	CART_BANK_SELECT
 	LDA	L0087
 	RTS
 	.byte	$84
@@ -3570,7 +3576,7 @@ LAF42	SAX	L0086	; (undocumented opcode)
 	LDA	L008C
 	PHA
 	STX	L008C
-	STX	LD500
+	STX	CART_BANK_SELECT
 	JMP	(L0087)
 	.byte	$A9
 	.byte	$00 ; Screen code for ' '

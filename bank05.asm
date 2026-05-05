@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 05: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Contains initialization/OS-facing code and preserved trailing fill.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 CASINI	= $0002
 RAMLO	= $0004
 TSTDAT	= $0007
@@ -125,8 +130,8 @@ PACTL	= $D302
 PBCTL	= $D303
 WSYNC	= $D40A
 SETVBV	= $E45C
-LE4A5	= $E4A5
-LE6D0	= $E6D0
+LE4A5	= $E4A5 ; OS ROM table/entry, exact purpose not yet verified.
+LE6D0	= $E6D0 ; OS ROM routine, exact purpose not yet verified.
 LF004	= $F004
 LF4BE	= $F4BE
 	org $8000

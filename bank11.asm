@@ -1,7 +1,10 @@
 	opt h-
 
+; Bank 11: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Treated as packed graphics/data. It is intentionally emitted as bytes
+; until the structure is proven and can be named without changing output.
+
 	org $8000
-; Original bank 11 is currently treated as packed data.
 	.byte	$0F,$7F,$7F,$7C,$0F,$7F,$7F,$7C,$0F,$7F,$7F,$7C,$0F,$7F,$7F,$7C ; $8000
 	.byte	$0F,$7F,$7F,$7C,$07,$7F,$7F,$78,$07,$7F,$7F,$78,$07,$7F,$7F,$78 ; $8010
 	.byte	$03,$3F,$7F,$70,$01,$1F,$7E,$60,$01,$1F,$7E,$60,$00,$07,$78,$00 ; $8020

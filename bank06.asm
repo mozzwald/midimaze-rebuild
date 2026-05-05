@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 06: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Starts by clearing/initializing RAM regions and then branches into data/code.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 L0080	= $0080
 L00AD	= $00AD
 L00AE	= $00AE

@@ -1,5 +1,8 @@
 	opt h-
 
+; Bank 07: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Original bank is entirely $FF fill. Keep collapsed as a repeat directive
+; so the emitted 8192 bytes remain exact without pretending this is code.
+
 	org $8000
-; Original bank 07 is entirely $FF fill bytes.
 :8192	.byte	$ff

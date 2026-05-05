@@ -1,5 +1,10 @@
 	opt h-
 
+; Bank 14: switchable 8KB cartridge bank, mapped at $8000-$9FFF.
+; Contains drawing/game support code and data tables.
+; Generated Lxxxx symbols are preserved until their meaning is proven.
+; Hardware/OS constants are named where confidently identified.
+
 RTCLOK	= $0012
 ICHIDZ	= $0020
 L0080	= $0080
