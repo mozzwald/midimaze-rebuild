@@ -71,6 +71,13 @@ SAVED_MEMLO_LO	= $3F0F
 SAVED_MEMLO_HI	= $3F10
 SETUP_CHECKSUM_RETRY_COUNT	= $3F12
 
+; Values stored in SETUP_LINK_MODE. The mode value is not identical to the
+; menu selection: SOLO and MIDI-MATE both use LINK_MODE_DIRECT_OR_LOCAL.
+LINK_MODE_DIRECT_OR_LOCAL	= $00
+LINK_MODE_XM301	= $01
+LINK_MODE_SX212	= $02
+LINK_MODE_ATARI_850	= $03
+
 ; Per-player runtime arrays, mostly 16-byte stride. These names are based on
 ; setup payload order, movement/collision usage, and gameplay parameter relay.
 PLAYER_X_LO	= $39B2

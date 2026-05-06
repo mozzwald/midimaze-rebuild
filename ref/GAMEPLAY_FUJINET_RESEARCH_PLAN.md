@@ -33,28 +33,30 @@ comments, symbols, tables, and trace notes before behavior changes.
 ## Progress Log
 
 - [x] Create the gameplay/FujiNet research plan and add agent guidance.
+- [x] Complete Phase G1 mode selection map for SOLO, MIDI-MATE, XM301,
+  SX212, and Atari 850 setup paths.
 
 ## Phase G1: Mode Selection And Setup State
 
 Goal: map mode selection values and where setup mode is stored/read.
 
-- [ ] Identify every write to `SETUP_LINK_MODE`.
-- [ ] Identify every read/branch on `SETUP_LINK_MODE`.
-- [ ] Map confirmed mode values:
-  - [ ] solo/local
-  - [ ] MIDIMATE
-  - [ ] XM301/SX212 modem
-  - [ ] Atari 850 interface
-- [ ] Document the menu/status text or input path that selects each mode.
-- [ ] Document mode-dependent setup branches in bank 12.
-- [ ] Add stable constants to `include/game_ram.inc` only when each value is
+- [x] Identify every write to `SETUP_LINK_MODE`.
+- [x] Identify every read/branch on `SETUP_LINK_MODE`.
+- [x] Map confirmed mode values:
+  - [x] solo/local
+  - [x] MIDIMATE
+  - [x] XM301/SX212 modem
+  - [x] Atari 850 interface
+- [x] Document the menu/status text or input path that selects each mode.
+- [x] Document mode-dependent setup branches in bank 12.
+- [x] Add stable constants to `include/game_ram.inc` only when each value is
   proven.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` contains a mode-selection table with value, source
+- [x] `docs/gameplay.md` contains a mode-selection table with value, source
   location, branch targets, and transport meaning.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G2: Main Gameplay Loop And Bank Ownership
 

@@ -68,7 +68,7 @@ semantic naming.
 | `$12` | `$0C` | `$8000` | `BANK12_BOOT_MENU_ENTRY` | `bank15:CART_STRT` |
 | `$13` | `$04` | `$8000` | `BANK4_NET_COMMAND_SERVICE_ENTRY` | frequent net command send/service paths |
 | `$14` | `$04` | `$8003` | `BANK4_SLOT14_SERVICE_ENTRY` | `bank12:L879E`, `bank12:L94FC` |
-| `$15` | `$04` | `$8006` | `BANK4_SLOT15_SERVICE_ENTRY` | `bank12:L81B5` |
+| `$15` | `$04` | `$8006` | `BANK4_SLOT15_SERVICE_ENTRY` | `bank12:MODE_SELECTION_DISPATCH` |
 | `$16` | `$04` | `$8009` | `BANK4_SLOT16_SERVICE_ENTRY` | `bank12:L87EE` |
 | `$17` | `$04` | `$800C` | `BANK4_SLOT17_SERVICE_ENTRY` | `bank12:L9430` |
 | `$18` | `$04` | `$800F` | `BANK4_SLOT18_SERVICE_ENTRY` | `bank12:L8392` |
@@ -79,7 +79,7 @@ semantic naming.
 | `$1D` | `$04` | `$801E` | `BANK4_SLOT1D_SERVICE_ENTRY` | `bank12:L8998`, `bank12:L94D3` |
 | `$1E` | `$04` | `$8021` | `BANK4_SLOT1E_SERVICE_ENTRY` | `bank12:L953F` |
 | `$1F` | `$04` | `$8024` | `BANK4_SLOT1F_SERVICE_ENTRY` | `bank12:L83B2`, `bank12:L83C3` |
-| `$20` | `$05` | `$8000` | `BANK5_PAYLOAD_LOADER_ENTRY` | `bank12:L81E2`, `bank12:L829E` |
+| `$20` | `$05` | `$8000` | `BANK5_PAYLOAD_LOADER_ENTRY` | `bank12:SETUP_XM301_ENTRY`, `bank12:SETUP_R_HANDLER_SHARED` |
 | `$21` | `$02` | `$8000` | `BANK2_SETUP_FINALIZE_ENTRY` | setup/roster finalization paths in bank 12 |
 | `$22` | `$00` | `$8000` | `BANK0_GAMEPLAY_UPDATE_ENTRY` | `bank12:L9A2D` gameplay loop |
 | `$23` | `$06` | `$8000` | `BANK6_MAZE_DATA_INIT_ENTRY` | initial table entry; no active call site proven yet |
@@ -206,7 +206,7 @@ the fixed-bank helpers.
 | `OUTGOING_NET_COMMAND` | `$3EE8` | Extended command queued by bank 12 for bank 4 injection into the command stream. |
 | `SETUP_REFRESH_DEADLINE` | `$3EEB` | Set to `L00B3 + $64` after setup/menu refresh points in banks 12 and 15. No active reads are confirmed yet. |
 | `BOT_COUNT_TARGET`, `BOT_COUNT_DRONE`, `BOT_COUNT_NINJA`, `BOT_COUNT_NASTY` | `$3EED-$3EEF`, `$3F13` | Setup bot counts; Nasty and Ninja share one packed protocol byte during resync. |
-| `SETUP_LINK_MODE` | `$3F07` | Setup path selector with observed values `$00-$03`; controls which callback vector set bank 12 installs. |
+| `SETUP_LINK_MODE` | `$3F07` | Setup path selector with values `LINK_MODE_DIRECT_OR_LOCAL`, `LINK_MODE_XM301`, `LINK_MODE_SX212`, and `LINK_MODE_ATARI_850`; controls which callback vector set bank 12 installs. |
 | `SETUP_LAST_SLOT1F_RESULT` | `$3F08` | Result byte returned from bank-call slot `$1F` during setup probing. |
 | `SETUP_RESUME_FLAG` | `$3F09` | Resume/re-entry flag checked with `SETUP_LINK_MODE` before returning to setup flow. |
 | `SETUP_HOLD_SYNC_FLAG` | `$3F0A` | Set by bank 4 on command byte `$1B`; checked by bank 12 hold/sync loops. |
