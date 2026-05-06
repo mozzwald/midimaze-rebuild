@@ -60,6 +60,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   identify the fixed dispatch tables, volatile bank 12 patch sites, critical
   gameplay slots, lack of proven free slots, and the preferred FujiNet pattern:
   transport vectors first, slot `$13` wrapper only with compatibility.
+- [x] Complete Phase G8 network commands and control bytes. The docs now split
+  direct setup marker `$83` from high-bit companion commands, document
+  `PENDING_NET_COMMAND` and `OUTGOING_NET_COMMAND` lifecycles, and flag
+  `CMD_START_GAME` as named but unproven.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -210,19 +214,19 @@ Verification gate:
 
 Goal: define setup/gameplay command bytes and high-bit behavior.
 
-- [ ] Document command values already named in `include/game_ram.inc`.
-- [ ] Identify pending command variable lifecycle through
+- [x] Document command values already named in `include/game_ram.inc`.
+- [x] Identify pending command variable lifecycle through
   `PENDING_NET_COMMAND`.
-- [ ] Identify outgoing command lifecycle through `OUTGOING_NET_COMMAND`.
-- [ ] Document high-bit/negative byte behavior in the transport parser.
-- [ ] Split setup-only commands from live gameplay commands.
-- [ ] Document command dispatch routines and expected acknowledgements.
+- [x] Identify outgoing command lifecycle through `OUTGOING_NET_COMMAND`.
+- [x] Document high-bit/negative byte behavior in the transport parser.
+- [x] Split setup-only commands from live gameplay commands.
+- [x] Document command dispatch routines and expected acknowledgements.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has command tables for setup and gameplay.
-- [ ] `docs/fujinet-porting.md` lists command semantics FujiNet must preserve.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `docs/gameplay.md` has command tables for setup and gameplay.
+- [x] `docs/fujinet-porting.md` lists command semantics FujiNet must preserve.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G9: Map And Maze Load Path
 

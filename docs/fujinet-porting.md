@@ -14,7 +14,7 @@ gameplay path is documented with exact bank/routine/slot references.
 - [x] Incoming byte semantics documented.
 - [x] Human/remote/bot boundary documented.
 - [x] Bank-call extension strategy documented.
-- [ ] Command semantics documented.
+- [x] Command semantics documented.
 - [ ] RAM/code-space risk table completed.
 - [ ] Implementation boundary defined.
 
@@ -144,3 +144,24 @@ The safest FujiNet direction is a transport-vector implementation plus a thin
 slot `$13` compatibility path only if the original bank 4 state machine cannot
 be reused directly. Any later implementation phase should include a trace plan
 for slot `$13` patching and `L3EB9` state transitions before changing code.
+
+## Command Semantics To Preserve
+
+FujiNet must preserve the original distinction between direct setup markers and
+live high-bit companion commands.
+
+| Value | Name | FujiNet requirement |
+|---:|---|---|
+| `$80` | `CMD_INIT_RING` | Preserve as the pre-live/start companion and raw hold/sync acknowledge behavior. Do not treat it as ordinary movement input. |
+| `$81` | `CMD_CLEAR_STATE` | Deliver as a negative companion command so remote `PENDING_NET_COMMAND` dispatch clears score/state mirrors. |
+| `$82` | `CMD_HOLD_SYNC` | Preserve hold/pause/sync behavior, including wait loops that temporarily redirect slot `$13`. |
+| `$83` | `MARKER_SETUP_PAYLOAD` | Preserve as a direct setup/resync marker byte, not as a `PLAYER_INPUT_STATUS` companion. |
+| `$84` | `CMD_RESYNC` | Preserve resync command semantics. Player 0 transmits setup state; other stations receive and apply it. |
+| `$86` | `CMD_ROSTER_EXCHANGE` | Preserve roster exchange dispatch. |
+| `$87` | `CMD_START_GAME` | Reserved/unverified in current source. Do not assign new FujiNet behavior without first tracing active use. |
+
+Transport rule: ordinary first bytes can be non-negative movement/status. A
+negative first byte means a companion byte follows for the same player. Negative
+companions other than `$FF` are command bytes and must become
+`PENDING_NET_COMMAND` on receivers. `$08` and `$0D` companions are local/status
+trail controls, not pending commands.

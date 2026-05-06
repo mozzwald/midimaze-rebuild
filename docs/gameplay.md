@@ -17,7 +17,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 - [x] Player state arrays deep-mapped.
 - [x] Human versus bot split mapped.
 - [x] Gameplay bank-call extension points mapped.
-- [ ] Network command/control bytes mapped.
+- [x] Network command/control bytes mapped.
 - [ ] Maze load path mapped.
 
 ## Mode Selection And Setup State
@@ -510,3 +510,73 @@ No currently documented slot is safe to repurpose as unused. Some initial table
 entries have no proven active caller yet, but their targets are still part of
 the cartridge's initialized bank-call table and may be reachable through mixed
 byte-form paths or future trace findings.
+
+## Network Commands And Control Bytes
+
+There are two related byte paths:
+
+- Live command/control bytes are usually carried as a high-bit
+  `PLAYER_INPUT_STATUS` marker plus a companion byte in `$2B00 + player`.
+- Setup payload markers such as `MARKER_SETUP_PAYLOAD` are sent directly
+  through `NET_CALL_VECTOR_1` and checked through `NET_VECTOR_WAIT_POLL`, not
+  through the bank 4 live `PLAYER_INPUT_STATUS` parser.
+
+### Command Values
+
+| Name | Value | Path | Current meaning |
+|---|---:|---|---|
+| `CMD_INIT_RING` | `$80` | live high-bit companion / direct hold ack | Pre-live/start or ring-init companion. Bank 12 stores it in `OUTGOING_NET_COMMAND` at `L9923`; bank 4 injects it into the next slot `$13` exchange. Hold/sync code also uses raw `$80` as an acknowledge byte. |
+| `CMD_CLEAR_STATE` | `$81` | live high-bit companion | Clear transient score/state mirrors. Sent from bank 12 setup command loop and dispatched by `NET_COMMAND_DISPATCH` to clear `L3DC7`, `PLAYER_SCORE_COUNTERS`, and `TEAM_SCORE_COUNTERS`. |
+| `CMD_HOLD_SYNC` | `$82` | live high-bit companion | Hold/pause/sync command. Queued by console/hold paths and handled by `NET_COMMAND_DISPATCH` through the `L95CB` hold/sync flow. |
+| `MARKER_SETUP_PAYLOAD` | `$83` | setup/resync direct marker | Marks the start of `MASTER_SEND_SETUP_PAYLOAD` / `SLAVE_RECEIVE_SETUP_PAYLOAD`. It is echoed/verified before setup payload bytes are exchanged. |
+| `CMD_RESYNC` | `$84` | live high-bit companion | Resync command. Queued by setup/live console paths and dispatched to `RESYNC_COMMAND`, where player 0 transmits setup state and other stations receive it. |
+| `CMD_ROSTER_EXCHANGE` | `$86` | live high-bit companion | Roster exchange command. Queued by bank 12 command loops and dispatched to `L8F57`. |
+| `CMD_START_GAME` | `$87` | not actively referenced | Named in `include/game_ram.inc`, but no active source reference is currently proven. Treat as reserved/unverified until a trace or hidden byte path proves usage. |
+
+### Pending Command Lifecycle
+
+`PENDING_NET_COMMAND` is the received-command latch at `$3EE7`.
+
+| Step | Location | Effect |
+|---:|---|---|
+| 1 | bank 4 `L821E-L82C7` | After a completed human exchange, bank 4 scans `PLAYER_INPUT_STATUS` for negative/high-bit first bytes. If the companion byte in `$2B00,X` is negative and not `$FF`, it stores that companion in `PENDING_NET_COMMAND`. |
+| 2 | bank 12 command loops `L9430`, `L953F`, `L9A2D`, hold/wait paths | Bank 12 treats nonzero `PENDING_NET_COMMAND` as a reason to dispatch, pause, resync, or exit the current wait loop. |
+| 3 | `NET_COMMAND_DISPATCH` | Clears `PENDING_NET_COMMAND` before comparing it with known commands. `$81`, `$82`, `$84`, and `$86` have confirmed dispatch paths. |
+| 4 | wait/hold paths | Several loops clear `PENDING_NET_COMMAND` after consuming an expected command, especially while waiting for `$84` resync or termination conditions. |
+
+### Outgoing Command Lifecycle
+
+`OUTGOING_NET_COMMAND` is the queued-command byte at `$3EE8`.
+
+| Step | Location | Effect |
+|---:|---|---|
+| 1 | bank 12 setup/live paths | Bank 12 stores command bytes such as `$80`, `$81`, `$82`, `$84`, or `$86` into `OUTGOING_NET_COMMAND` when local console/menu state requests a network action. |
+| 2 | bank 4 slot `$13` at `L808E-L8115` | If `OUTGOING_NET_COMMAND` is nonzero at the start of an exchange, bank 4 clears the latch, stores the command byte into `$2B00 + LOCAL_PLAYER_INDEX`, and forces the local first byte high with `$80`. |
+| 3 | bank 4 `L815B-L8170` | The high-bit first byte is sent through `NET_CALL_VECTOR_1`; because it is negative, the companion command byte is sent immediately after it. |
+| 4 | remote bank 4 parser | Remote machines receive the high-bit first byte, read the companion byte, and later latch the negative companion into `PENDING_NET_COMMAND`. |
+
+### High-Bit Behavior
+
+Bank 4 distinguishes ordinary input from command/control by signedness:
+
+| Byte | Test | Meaning |
+|---|---|---|
+| First `PLAYER_INPUT_STATUS` byte non-negative | `BPL` at bank 4 receive/scan paths | Ordinary movement/fire/status byte. `$2B00,X` is set to `$FF`. |
+| First `PLAYER_INPUT_STATUS` byte negative | `BMI` at bank 4 receive/scan paths | Companion byte follows and is stored in `$2B00,X`. |
+| Companion byte negative and not `$FF` | bank 4 `L822E-L8246` | Latched into `PENDING_NET_COMMAND`. |
+| Companion byte `$FF` | bank 4 `L822E-L8246` | No command for that player. |
+| Companion byte `$08` or `$0D` | bank 4 `L8246-L829F` | Local/status trail editing/display control, not a pending network command. |
+
+Keyboard/control bytes read locally before packet packing are separate from
+the named network commands: `$9B` clears the input trail and maps to companion
+`$0D`; `$7E` backs up the trail and maps to companion `$08`; `$7F` toggles
+`SETUP_SYNC_TOGGLE_FLAG`; `$1B` sets `SETUP_HOLD_SYNC_FLAG`.
+
+### Setup Versus Live Commands
+
+| Category | Values | Carrier | Notes |
+|---|---|---|---|
+| Setup payload marker | `$83` | direct `NET_CALL_VECTOR_1` / `NET_VECTOR_WAIT_POLL` | Used by `MASTER_SEND_SETUP_PAYLOAD` and `SLAVE_RECEIVE_SETUP_PAYLOAD`; failure reports `ERR_NETWORK`. |
+| Setup/menu control commands | `$81`, `$82`, `$84`, `$86` | high-bit companion through bank 4 slot `$13` | Bank 12 command loops before live play queue these in `OUTGOING_NET_COMMAND` and wait for `PENDING_NET_COMMAND`. |
+| Pre-live start/init | `$80` | high-bit companion through slot `$13`; raw ack in hold/sync | Used when leaving pre-live waits and as a raw hold/sync acknowledge byte. |
+| Live gameplay commands | `$82`, `$84` primarily | high-bit companion through slot `$13` | Live service and hold/pause loops use these for hold/sync and resync/continue behavior. Other pending commands can terminate or return to menu depending on the wait path. |

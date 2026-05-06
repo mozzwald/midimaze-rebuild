@@ -309,6 +309,18 @@ bank 15 MIDI/POKEY transport.
 - `OUTGOING_NET_COMMAND = $3EE8`: extended command byte to inject into the
   ring.
 
+Named command/control bytes:
+
+| Name | Value | Role |
+|---|---:|---|
+| `CMD_INIT_RING` | `$80` | Pre-live/start companion and raw hold/sync acknowledge byte. |
+| `CMD_CLEAR_STATE` | `$81` | Clears transient score/state mirrors through `NET_COMMAND_DISPATCH`. |
+| `CMD_HOLD_SYNC` | `$82` | Hold/pause/sync command. |
+| `MARKER_SETUP_PAYLOAD` | `$83` | Direct setup/resync payload marker for `MASTER_SEND_SETUP_PAYLOAD` / `SLAVE_RECEIVE_SETUP_PAYLOAD`. |
+| `CMD_RESYNC` | `$84` | Resynchronizes setup/gameplay state. |
+| `CMD_ROSTER_EXCHANGE` | `$86` | Starts roster/status exchange through bank 12 `L8F57`. |
+| `CMD_START_GAME` | `$87` | Named but not actively referenced in current source; reserved/unverified. |
+
 Named bank 12 protocol routines:
 
 - `MASTER_SEND_SETUP_PAYLOAD`: sends marker `$83` and setup payload as the
