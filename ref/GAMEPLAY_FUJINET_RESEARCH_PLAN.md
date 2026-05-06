@@ -64,6 +64,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   direct setup marker `$83` from high-bit companion commands, document
   `PENDING_NET_COMMAND` and `OUTGOING_NET_COMMAND` lifecycles, and flag
   `CMD_START_GAME` as named but unproven.
+- [x] Complete Phase G9 map and maze load path. The docs now identify the
+  final `$3000-$37FF` maze buffer layout, bank 6 built-in maze initializer,
+  bank 12 compact/expanded transfer paths, bank 13 placement/occupancy flow,
+  and remaining trace target for the slot `$23` caller.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -232,18 +236,18 @@ Verification gate:
 
 Goal: understand how maze data reaches the gameplay buffer.
 
-- [ ] Identify where built-in mazes are selected.
-- [ ] Identify where external/custom maze data is loaded or copied.
-- [ ] Document the final maze buffer layout used by gameplay.
-- [ ] Identify wall/cell encoding, player spawn placement, and maze-size
+- [x] Identify where built-in mazes are selected.
+- [x] Identify where external/custom maze data is loaded or copied.
+- [x] Document the final maze buffer layout used by gameplay.
+- [x] Identify wall/cell encoding, player spawn placement, and maze-size
   limits.
-- [ ] Document which banks read/write maze buffers during gameplay.
+- [x] Document which banks read/write maze buffers during gameplay.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has a maze-load flow and final buffer layout.
-- [ ] Source comments identify maze buffer readers/writers where proven.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `docs/gameplay.md` has a maze-load flow and final buffer layout.
+- [x] Source comments identify maze buffer readers/writers where proven.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G10: RAM Pressure And Scratch Audit
 

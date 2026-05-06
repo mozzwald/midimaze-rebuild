@@ -18,7 +18,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 - [x] Human versus bot split mapped.
 - [x] Gameplay bank-call extension points mapped.
 - [x] Network command/control bytes mapped.
-- [ ] Maze load path mapped.
+- [x] Maze load path mapped.
 
 ## Mode Selection And Setup State
 
@@ -580,3 +580,73 @@ the named network commands: `$9B` clears the input trail and maps to companion
 | Setup/menu control commands | `$81`, `$82`, `$84`, `$86` | high-bit companion through bank 4 slot `$13` | Bank 12 command loops before live play queue these in `OUTGOING_NET_COMMAND` and wait for `PENDING_NET_COMMAND`. |
 | Pre-live start/init | `$80` | high-bit companion through slot `$13`; raw ack in hold/sync | Used when leaving pre-live waits and as a raw hold/sync acknowledge byte. |
 | Live gameplay commands | `$82`, `$84` primarily | high-bit companion through slot `$13` | Live service and hold/pause loops use these for hold/sync and resync/continue behavior. Other pending commands can terminate or return to menu depending on the wait path. |
+
+## Map And Maze Load Path
+
+The final maze used by gameplay lives in RAM at `$3000-$37FF`. Fixed-bank cell
+helpers address it as a row-stride structure:
+
+```text
+wall byte      = $3000 + row*$40 + column
+occupancy byte = wall byte + $20
+row stride     = $40
+```
+
+The first `$20` bytes of each row hold wall/cell bytes. The second `$20` bytes
+hold per-cell occupancy/list-head bytes used by player linked lists. The active
+maze size is `MAZE_SIZE_INDEX`; valid gameplay coordinates are checked against
+`0..MAZE_SIZE_INDEX-1`.
+
+### Load And Transfer Flow
+
+| Phase | Location | Writer | Result |
+|---|---|---|---|
+| Built-in maze initializer | bank 6 slot `$23` `BANK6_MAZE_DATA_INIT_ENTRY` | Clears `$3000-$37FF` to `$FF`, selects a packed built-in maze pointer from bank 6 table `L8083`, and copies `MAZE_SIZE_INDEX` rows into `$3000` with `$40` stride. | Produces a final wall/cell buffer for one built-in maze. No active call site for slot `$23` is proven yet. |
+| Setup payload send, compact path | bank 12 `MASTER_SEND_SETUP_PAYLOAD`, `L8B4F-L8B80` | Reads each cell through fixed helper `LAD00` for `MAZE_SIZE_INDEX * MAZE_SIZE_INDEX` cells and sends the compact cell byte around the ring. | Transfers maze-size-bounded cell bytes. |
+| Setup payload send, expanded path | bank 12 `MASTER_SEND_SETUP_PAYLOAD`, `L8A99-L8B1D` | Walks the `$3000` final maze buffer as 32 rows, sends selected wall/opening bits, and expects each byte to circle back. | Transfers an expanded/custom-style final maze buffer. `L396C` selects this path, but its broader role remains generated. |
+| Setup payload receive, compact path | bank 12 `SLAVE_RECEIVE_SETUP_PAYLOAD`, `L8F12-L8F56` | Receives compact cell bytes and writes them through the fixed helper addressing tables into `$3000`. | Rebuilds the compact transferred maze. |
+| Setup payload receive, expanded path | bank 12 `SLAVE_RECEIVE_SETUP_PAYLOAD`, `L8E04-L8EDC` | Starts from `$FF`-filled `$3000-$37FF` and clears paired wall bits as open edges arrive. | Rebuilds the expanded/custom-style final maze buffer. |
+| Placement setup | bank 13 slot `$02` `BANK13_PLAYER_PLACEMENT_SETUP_ENTRY` | Clears the `+$20` occupancy/list-head plane for each `$40`-byte row, then places players and initializes `MAZE_CELL_PLAYER_NEXT` links. | Adds per-cell player occupancy without changing the wall geometry. |
+
+### Built-In Maze Selection
+
+Bank 6 contains the only clearly isolated built-in maze data initializer found
+so far. Its slot `$23` entry accepts an incoming `Y` maze selection, stores the
+selection in scratch, looks up the maze size in `L806B`, stores it in
+`MAZE_SIZE_INDEX`, and uses the pointer table at `L8083` to find packed maze
+bytes. The table has 24 size entries. The copied destination is always the
+final `$3000` maze buffer.
+
+No active caller of bank-call slot `$23` is currently proven in source. Treat
+the initializer as a confirmed built-in maze loader, but keep the selection UI
+or hidden dispatch path as a trace target.
+
+### Cell Encoding
+
+The exact visual names for each wall bit still need rendering or trace
+confirmation, but the setup receive path proves paired edge behavior:
+
+| Bit operation | Receive path | Meaning |
+|---|---|---|
+| Clear `$10` in current cell and `$20` in left neighbor | bank 12 `L8E24-L8E42` | One horizontal/neighbor-paired opening. |
+| Clear `$40`/`$80` in the previous row's corresponding cells | bank 12 `L8E42-L8E56` | Same opening mirrored into the previous row plane when not on row 0. |
+| Clear `$01` in current cell and `$04` in previous row current cell | bank 12 `L8E57-L8E7B` | One vertical/neighbor-paired opening. |
+| Clear `$08` in current cell and `$02` in left neighbor | bank 12 `L8E87-L8EAB` | Another horizontal/neighbor-paired opening. |
+
+Cells start as `$FF`, which is also the uninitialized/outside value. The
+expanded receive path clears bits to represent openings or reachable edges.
+Gameplay code tests maze bounds with `MAZE_SIZE_INDEX` before reading a cell.
+
+### Gameplay Readers And Writers
+
+| Owner | Maze role |
+|---|---|
+| fixed bank 15 | `LAD00` reads the wall byte into `X` and the occupancy/list-head byte into `A`; `LAD18`/adjacent helpers write cell occupancy; `LAD6F` appends players to `MAZE_CELL_PLAYER_NEXT` linked lists; `LAE8B`/`LAEB0` provide PRNG/range helpers used during placement and AI. |
+| bank 13 | Placement chooses random in-bounds cells, checks `LAD00`, writes player positions, and links players into cell occupancy. Movement/projectile collision also uses `LAD00`, `MAZE_SIZE_INDEX`, and `MAZE_CELL_PLAYER_NEXT`. |
+| bank 0 / bank 1 | Bot AI and movement helpers call `LAD00` to inspect walls/occupancy around candidate positions. |
+| bank 14 | Renderer uses `MAZE_SIZE_INDEX` and the maze/player occupancy state while building visible draw lists. |
+| bank 12 | Setup/resync sender and receiver transfer/rebuild the final maze buffer across machines. |
+
+For FujiNet, the important boundary is that peers must agree on the same final
+`$3000` wall buffer, `MAZE_SIZE_INDEX`, seeds, and bot counts before placement
+and live updates begin.

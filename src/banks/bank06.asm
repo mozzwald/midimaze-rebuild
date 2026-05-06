@@ -29,6 +29,10 @@ L3500	= $3500
 L3600	= $3600
 L3700	= $3700
 	org $8000
+; Initialize the final maze cell buffer at $3000-$37FF from one of the packed
+; built-in maze records. Each copied row uses a $40-byte stride; the first
+; $20 bytes in a row are wall/cell bytes and the +$20 plane is later used for
+; per-cell player occupancy lists.
 BANK6_MAZE_DATA_INIT_ENTRY	STY	L0080	; bank-call slot $23
 	LDX	L0080
 	LDA	L806B,X

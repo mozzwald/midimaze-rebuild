@@ -18,6 +18,20 @@ These include symbols are intended to be reused across banks. Game-private
 `Lxxxx` labels remain local until their role is proven by cross-references or
 emulator traces.
 
+## Maze Buffer
+
+The final maze buffer is in RAM at `$3000-$37FF`.
+
+| Name | Address/value | Role |
+|---|---:|---|
+| `MAZE_CELL_WALL_BASE` | `$3000` | Base of the wall/cell byte plane. Fixed-bank cell helpers address cells as base + row*$40 + column. |
+| `MAZE_CELL_OCCUPANCY_OFFSET` | `$20` | Offset from a wall byte to the matching occupancy/list-head byte for the same cell. |
+| `MAZE_CELL_ROW_STRIDE` | `$40` | Byte stride between rows in the final maze buffer. |
+
+Bank 6 slot `$23` initializes this buffer from packed built-in maze data, and
+bank 12 setup/resync paths can transfer either compact cell bytes or an
+expanded final buffer. `MAZE_SIZE_INDEX` bounds active rows/columns.
+
 ## Cartridge Banking
 
 - `CART_BANK_SELECT = $D500`: cartridge control region used to select banks.

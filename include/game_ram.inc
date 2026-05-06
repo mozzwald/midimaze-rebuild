@@ -10,6 +10,13 @@ BANK_CALL_BANK_ID	= $3D8E
 MIDI_RX_BUFFER	= $2D00
 MIDI_TX_BUFFER	= $2E00
 
+; Maze cell RAM. Fixed-bank cell helpers address cells as
+; MAZE_CELL_WALL_BASE + row*$40 + column; the occupancy/list-head byte for the
+; same cell is MAZE_CELL_OCCUPANCY_OFFSET bytes after the wall byte.
+MAZE_CELL_WALL_BASE	= $3000
+MAZE_CELL_OCCUPANCY_OFFSET	= $20
+MAZE_CELL_ROW_STRIDE	= $40
+
 ; Status/message line buffers used by the menu, setup, and error UI.
 STATUS_LINE_BUFFER	= $72C0
 STATUS_ERROR_PREFIX	= $72C1

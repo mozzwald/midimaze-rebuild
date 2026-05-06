@@ -165,3 +165,22 @@ negative first byte means a companion byte follows for the same player. Negative
 companions other than `$FF` are command bytes and must become
 `PENDING_NET_COMMAND` on receivers. `$08` and `$0D` companions are local/status
 trail controls, not pending commands.
+
+## Maze Transfer Boundary
+
+FujiNet setup must preserve maze agreement before live play. The original setup
+path synchronizes `MAZE_SIZE_INDEX`, maze cell data, seeds, bot counts, team
+state, and gameplay parameters before placement/live update begins.
+
+Current maze-transfer forms:
+
+| Form | Current path | FujiNet implication |
+|---|---|---|
+| Compact cell bytes | bank 12 `MASTER_SEND_SETUP_PAYLOAD` / `SLAVE_RECEIVE_SETUP_PAYLOAD` compact path | Can be represented as `MAZE_SIZE_INDEX * MAZE_SIZE_INDEX` bytes if using the same cell encoding. |
+| Expanded final buffer | bank 12 expanded path around `$3000` | Must preserve paired wall-bit clearing semantics and the `$3000` wall plane layout. |
+
+Future FujiNet packets should either carry the same compact cell bytes used by
+`LAD00`/fixed helper addressing, or carry enough information to rebuild the
+exact `$3000` wall plane. Do not derive maze state independently on each peer
+unless `PRNG_SEED_LOW/HIGH`, `MAZE_SIZE_INDEX`, bot counts, and all setup
+options are proven to produce byte-identical `$3000` buffers.

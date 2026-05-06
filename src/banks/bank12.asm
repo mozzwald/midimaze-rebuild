@@ -1265,6 +1265,9 @@ L8A90	RTS
 L8A91	LDA	L396C
 	BNE	L8A99
 	JMP	L8B4F
+; Transmit the expanded final maze buffer. Each 32-cell row sends selected
+; wall/opening bits from the $3000 wall plane and expects each byte to circle
+; back through the ring.
 L8A99	LDA	#$00
 	STA	L00A8
 	LDA	#$30
@@ -1635,6 +1638,9 @@ L8D4E	JSR	NET_CALL_VECTOR_1
 L8DD6	LDA	#ERR_NO_DRONES_ALLOWED
 	STA	NET_ERROR_CODE
 L8DDB	RTS
+; Receive and rebuild the final maze buffer at $3000-$37FF. The compact path
+; writes direct cell bytes; the expanded path starts from $FF-filled cells and
+; clears paired wall bits as open edges arrive.
 L8DDC	LDX	#$00
 	LDA	#$FF
 L8DE0	STA	L3000,X
