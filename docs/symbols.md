@@ -50,7 +50,7 @@ semantic naming.
 | `$00` | `$00` | `$B511` | `FIXED_DRAW_FIELD_7380_FILL_ENTRY` | `bank14:L8015` |
 | `$01` | `$00` | `$B579` | `FIXED_FRAME_DISPLAY_SERVICE_ENTRY` | `bank14:L8061`, `bank14:L9D91`, `bank14:L9D9E`, `bank15:LB3A6` |
 | `$02` | `$0D` | `$8000` | `BANK13_PLAYER_PLACEMENT_SETUP_ENTRY` | - |
-| `$03` | `$0D` | `$8185` | `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | - |
+| `$03` | `$0D` | `$8185` | `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | registered player/maze update entry; no active caller proven yet |
 | `$04` | `$0E` | `$8000` | `BANK14_DRAW_STATE_CLEAR_ENTRY` | `bank12:L888B`, `bank12:L8C94`, `bank12:L9857` |
 | `$05` | `$0E` | `$8011` | `BANK14_DISPLAY_SCRATCH_CLEAR_ENTRY` | - |
 | `$06` | `$0E` | `$81FB` | `BANK14_SLOT06_DRAW_SERVICE_ENTRY` | - |
@@ -66,7 +66,7 @@ semantic naming.
 | `$10` | `$0D` | `$8900` | `BANK13_SETUP_PLACEMENT_DISPATCH_ENTRY` | `bank12:L888B`, `bank12:L8C94`, `bank12:L9857` |
 | `$11` | `$0C` | `$0000` | volatile slot patched before use | patched by bank 12 |
 | `$12` | `$0C` | `$8000` | `BANK12_BOOT_MENU_ENTRY` | `bank15:CART_STRT` |
-| `$13` | `$04` | `$8000` | `BANK4_NET_COMMAND_SERVICE_ENTRY` | frequent net command send/service paths |
+| `$13` | `$04` | `$8000` | `BANK4_NET_COMMAND_SERVICE_ENTRY` | `bank12:L9A2D` live service, pre-live/resync/hold wait loops |
 | `$14` | `$04` | `$8003` | `BANK4_SLOT14_SERVICE_ENTRY` | `bank12:L879E`, `bank12:L94FC` |
 | `$15` | `$04` | `$8006` | `BANK4_SLOT15_SERVICE_ENTRY` | `bank12:MODE_SELECTION_DISPATCH` |
 | `$16` | `$04` | `$8009` | `BANK4_SLOT16_SERVICE_ENTRY` | `bank12:L87EE` |

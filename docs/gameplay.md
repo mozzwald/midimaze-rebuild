@@ -11,7 +11,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 ## Current Status
 
 - [x] Mode selection and setup state mapped.
-- [ ] Main gameplay loop mapped.
+- [x] Main gameplay loop mapped.
 - [ ] Transport-specific setup paths mapped.
 - [ ] Incoming player data path mapped.
 - [ ] Player state arrays deep-mapped.
@@ -80,3 +80,61 @@ The visible menu text bytes in bank 4 are, in order: `SOLO`, `MIDI-MATE`,
   handler setup family and use AT-style command strings.
 - `LINK_MODE_ATARI_850 = $03` is distinguished from SX212 by the extra CIO
   command before shared initialization.
+
+## Main Gameplay Loop And Bank Ownership
+
+Bank 12 owns the live gameplay orchestration. It does not do all gameplay work
+itself; instead it repoints volatile bank-call slots, polls transport state, and
+dispatches bank-owned service routines.
+
+### Live Service Slice
+
+The primary live service slice is bank 12 `L9A2D`. The slot `$11` patch at
+`L93F8` and `L9504` writes target `$9A15` in the current bank, one byte before
+`L9A16`, so the exact entry includes a preserved byte boundary before the
+visible `PLA` at `L9A16`.
+
+| Order | Bank/slot | Location | Role |
+|---:|---|---|---|
+| 1 | bank 12 | `L9A16-L9A28` | Converts console hold/sync state into `OUTGOING_NET_COMMAND = CMD_HOLD_SYNC` (`$82`) when needed. |
+| 2 | slot `$13`, bank 4 | `BANK4_NET_COMMAND_SERVICE_ENTRY` | Services outgoing command state and incoming transport/command state. Called at `L9A2D`. |
+| 3 | bank 12 | `L9A2D-L9A5B` | Exits on `NET_ERROR_CODE`, dispatches pending commands through `NET_COMMAND_DISPATCH`, and spins while `L3EB9` remains nonzero. |
+| 4 | slot `$22`, bank 0 | `BANK0_GAMEPLAY_UPDATE_ENTRY` | Updates non-human/local gameplay actors from `HUMAN_PLAYER_COUNT` up to `TOTAL_PLAYER_COUNT`. |
+| 5 | bank 12 | `L9A2D-L9A58` | Decrements `L3F0C`; most iterations return through `BANK_RETURN`, and every `$15` ticks jump to `SETUP_CHECKSUM_EXCHANGE`. |
+
+This is a service slice rather than a simple infinite frame loop: clean
+iterations return through `BANK_RETURN`, while busy transport state can loop
+inside `L9A2D` until `L3EB9` clears.
+
+### Entry And Re-Entry Paths
+
+| Location | Role |
+|---|---|
+| `L93F8` | Patches slot `$11` to bank 12 `$9A15`, slot `$1B` to bank 4 `$8018`, and slot `$13` to bank 4 `$8000`; calls slot `$1B`, then enters the `L9430` command loop. |
+| `L9430` | Calls slot `$17`, checks `NET_ERROR_CODE` and `PENDING_NET_COMMAND`, dispatches commands, and handles resync/clear/roster command transitions. |
+| `L9504` | Alternate entry with the same slot `$11/$1B/$13` patching, plus an `LB224` call before slot `$1B`; enters the `L953F` command loop. |
+| `L953F` | Calls slot `$1E`, checks network status and pending commands, and uses `L9576` as its resync wait loop. |
+| `L9857` | Final gameplay setup path before live control. It clears/draws state through slots `$04`, `$21`, and `$10`, initializes score mirrors, then enters the master/non-master pre-live wait paths at `L98CB` or `L9926`. |
+| `L98CB`, `L9909`, `L9926` | Pre-live command wait paths. They poll slot `$0D` and slot `$13`, update `OUTGOING_NET_COMMAND`, and wait for `PENDING_NET_COMMAND`. |
+| `L9A81`, `L9A99`, `L9AC2`, `L9ADF`, `L9B17` | Hold/sync/pause-style wait paths that repeatedly poll slot `$0D` and slot `$13` until console or pending-command state changes. |
+
+### Bank Ownership
+
+| Owner | Routine/slot | Gameplay responsibility |
+|---|---|---|
+| bank 12 | `L9A2D`, `NET_COMMAND_DISPATCH`, resync/hold paths | High-level live control, command dispatch, periodic checksum/resync entry, and volatile slot patching. |
+| bank 4 | slot `$13` `BANK4_NET_COMMAND_SERVICE_ENTRY` | Transport-facing command service during setup, pre-live waits, live gameplay, and pause/resync waits. |
+| bank 0 | slot `$22` `BANK0_GAMEPLAY_UPDATE_ENTRY` | Non-human/bot gameplay update. It starts at `HUMAN_PLAYER_COUNT`, stores the current slot in `L40CB`, dispatches on `L3F16,X`, and stops at `TOTAL_PLAYER_COUNT`. |
+| bank 1 | direct trampoline targets from bank 0 via `$AF41` | Movement, collision, targeting, and state helper routines used by bank 0. Bank 0 calls these with `A=bank`, `X=target high`, `Y=target low`. |
+| bank 13 | slot `$03` `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | Registered player/maze/projectile update entry. No direct slot `$03` caller has been found in active source yet; the call path remains an explicit trace target for the player-state phases. |
+
+### Slot `$13` Live Call Sites
+
+Slot `$13` is the best current marker for gameplay transport servicing. It is
+called in the live service slice at `L9A2D`, in resync wait loops `L9467` and
+`L9576`, in pre-live waits `L98CB`, `L9909`, and `L9926`, and in hold/sync
+waits `L9A81`, `L9A99`, `L9AC2`, `L9ADF`, and `L9B17`.
+
+`L95D0` temporarily redirects slot `$13` to `BANK_RETURN` (`$AF36`) during the
+hold/sync master path, then `L9613` restores it to bank 4 `$8000`. Any future
+transport hook must account for this volatility.

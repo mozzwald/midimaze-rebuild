@@ -35,6 +35,10 @@ comments, symbols, tables, and trace notes before behavior changes.
 - [x] Create the gameplay/FujiNet research plan and add agent guidance.
 - [x] Complete Phase G1 mode selection map for SOLO, MIDI-MATE, XM301,
   SX212, and Atari 850 setup paths.
+- [x] Complete Phase G2 main gameplay loop and bank ownership map. Slot `$13`
+  is the primary transport service hook; slot `$22` owns bank 0 non-human
+  gameplay updates; slot `$03` remains a registered bank 13 update entry with
+  no active caller proven in source yet.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -62,22 +66,22 @@ Verification gate:
 
 Goal: define the live gameplay frame/control loop and its bank-call structure.
 
-- [ ] Identify the primary bank 12 live gameplay loop entry and re-entry paths.
-- [ ] Identify where bank-call slot `$13` is called during live gameplay.
-- [ ] Identify where bank 13 player movement/collision/projectile update is
+- [x] Identify the primary bank 12 live gameplay loop entry and re-entry paths.
+- [x] Identify where bank-call slot `$13` is called during live gameplay.
+- [x] Identify where bank 13 player movement/collision/projectile update is
   called.
-- [ ] Identify where bank 0 local/bot/gameplay update is called.
-- [ ] Document loop order: input, transport service, player update, bot update,
+- [x] Identify where bank 0 local/bot/gameplay update is called.
+- [x] Document loop order: input, transport service, player update, bot update,
   drawing/status, command dispatch, exit conditions.
-- [ ] Document volatile bank-call slot patching relevant to gameplay.
+- [x] Document volatile bank-call slot patching relevant to gameplay.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has a main gameplay loop call graph with bank, slot,
+- [x] `docs/gameplay.md` has a main gameplay loop call graph with bank, slot,
   routine, inputs, outputs, and exit paths.
-- [ ] `docs/fujinet-porting.md` lists the gameplay-loop insertion points that
+- [x] `docs/fujinet-porting.md` lists the gameplay-loop insertion points that
   are safe candidates for future FujiNet service calls.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G3: Transport-Specific Setup Paths
 

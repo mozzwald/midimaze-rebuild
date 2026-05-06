@@ -3252,6 +3252,10 @@ L9A16	PLA
 	BEQ	L9A2D
 L9A28	LDA	#$82
 	STA	OUTGOING_NET_COMMAND
+; Live gameplay service slice. Bank 12 services the bank 4 transport/command
+; path through slot $13, waits while L3EB9 is nonzero, then runs bank 0
+; non-human gameplay updates through slot $22 before periodically re-entering
+; the setup checksum exchange.
 L9A2D	LDX	#$13
 	JSR	BANK_CALL_INDEXED
 	LDA	NET_ERROR_CODE
