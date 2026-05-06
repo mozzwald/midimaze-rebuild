@@ -80,6 +80,25 @@ Keep changes mechanical and byte-verifiable.
   output are proven.
 - Do not move code or data across bank boundaries.
 
+## Naming And Navigation Workflow
+
+Use `include/*.inc` as the authoritative home for shared symbols that are proven
+across banks. Keep bank-private scratch addresses as local `Lxxxx` aliases until
+their role is established by call sites, tables, byte comparisons, or emulator
+traces.
+
+Each bank source starts with a bank-local map that identifies the major code,
+data, table, and fill ranges. Use those maps first, then consult
+`docs/symbols.md` as the cross-bank index for slot targets, shared RAM, protocol
+state, and message/status names.
+
+For any readability batch:
+
+1. Read `ref/READABILITY_RENAME_PLAN.md`.
+2. Make the smallest comment or naming change that is backed by evidence.
+3. Keep unknown bytes and undocumented opcodes byte-preserving.
+4. Run `make compare` before considering the batch complete.
+
 ## Known Fixed-Bank Services
 
 Some labels in `src/banks/bank15.asm` have been named because their role is clear:

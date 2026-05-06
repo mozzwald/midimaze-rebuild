@@ -96,7 +96,7 @@ LAD00	= $AD00
 LBE06	= $BE06
 LBE0C	= $BE0C
 	org $8000
-START1	JMP	L8012
+BANK1_GAMEPLAY_STATE_INIT_ENTRY	JMP	L8012
 ; Absolute jump stubs stored as raw bytes; targets are in this bank.
 	.byte	$4C ; 'L'
 	.byte	$0C ; Screen code for ','

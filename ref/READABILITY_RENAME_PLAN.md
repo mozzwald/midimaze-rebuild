@@ -37,6 +37,9 @@ items only after `make compare` still reports an exact ROM match.
 - [x] Completed Phase 6 bank-local maps and proven bank-call entry names. Data
   and fill banks remain intentionally byte/data-preserving; generated labels
   remain where they are local, ambiguous, or not safe to promote yet.
+- [x] Completed Phase 7 final navigation pass. README now documents the
+  naming/commenting workflow, all remaining generated labels have a documented
+  retention policy, and `make clean compare listing` reports an exact ROM match.
 
 ## Phase 1: Bank-Call Entry Points
 
@@ -206,23 +209,24 @@ Verification gate:
 
 Goal: make the whole source tree navigable for future work.
 
-- [ ] Remove redundant generated aliases that have stable shared names.
-- [ ] Normalize comment style and terminology across banks.
-- [ ] Ensure all shared symbols are defined once in `include/*.inc`.
-- [ ] Ensure `docs/symbols.md` is an index, not the only place critical meaning
+- [x] Remove redundant generated aliases that have stable shared names.
+- [x] Normalize comment style and terminology across banks.
+- [x] Ensure all shared symbols are defined once in `include/*.inc`.
+- [x] Ensure `docs/symbols.md` is an index, not the only place critical meaning
   exists.
-- [ ] Add README guidance for naming/commenting workflow.
-- [ ] Run `make clean compare listing`.
+- [x] Add README guidance for naming/commenting workflow.
+- [x] Run `make clean compare listing`.
 - [ ] Optionally run `make run` with `atari800-ai` and record emulator status.
+  - Deferred for user emulator testing after this phase.
 
 Final definition of done:
 
-- [ ] All executable entry points have human-readable names or documented reason
+- [x] All executable entry points have human-readable names or documented reason
   for retaining `Lxxxx`.
-- [ ] All shared RAM and hardware/OS addresses have stable names where proven.
-- [ ] All known tables/data blocks have labels or comments.
-- [ ] The ROM remains byte-exact.
-- [ ] The source can be navigated from README, `docs/symbols.md`, this plan,
+- [x] All shared RAM and hardware/OS addresses have stable names where proven.
+- [x] All known tables/data blocks have labels or comments.
+- [x] The ROM remains byte-exact.
+- [x] The source can be navigated from README, `docs/symbols.md`, this plan,
   and bank-local map comments.
 
 ## How To Use This Plan
