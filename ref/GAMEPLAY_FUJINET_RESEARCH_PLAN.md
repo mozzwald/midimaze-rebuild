@@ -39,6 +39,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   is the primary transport service hook; slot `$22` owns bank 0 non-human
   gameplay updates; slot `$03` remains a registered bank 13 update entry with
   no active caller proven in source yet.
+- [x] Complete Phase G3 transport-specific setup path map. SOLO and MIDI-MATE
+  install direct callback vectors and enter `L863D`; XM301, SX212, and Atari
+  850 perform device/modem setup through the `R:`/CIO family before converging
+  through `L83B2` and `L863D`.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -87,21 +91,21 @@ Verification gate:
 
 Goal: split setup flow by transport while preserving the shared post-setup path.
 
-- [ ] Document MIDIMATE initialization and its jump into shared setup.
-- [ ] Document modem initialization for XM301/SX212-style paths.
-- [ ] Document Atari 850 initialization and status/probe behavior.
-- [ ] Document solo/local initialization.
-- [ ] Identify the shared code after transport setup converges.
-- [ ] Document which vectors/callbacks are patched per transport.
-- [ ] Document error paths and `NET_ERROR_CODE` values per transport.
+- [x] Document MIDIMATE initialization and its jump into shared setup.
+- [x] Document modem initialization for XM301/SX212-style paths.
+- [x] Document Atari 850 initialization and status/probe behavior.
+- [x] Document solo/local initialization.
+- [x] Identify the shared code after transport setup converges.
+- [x] Document which vectors/callbacks are patched per transport.
+- [x] Document error paths and `NET_ERROR_CODE` values per transport.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has a transport setup table with entry routine,
+- [x] `docs/gameplay.md` has a transport setup table with entry routine,
   callbacks, setup mode, success target, and failure target.
-- [ ] `docs/fujinet-porting.md` has a first-pass "FujiNet setup analogue"
+- [x] `docs/fujinet-porting.md` has a first-pass "FujiNet setup analogue"
   section listing which existing transport path is closest.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G4: Incoming Player Data Path
 

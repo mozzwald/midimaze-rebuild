@@ -37,3 +37,29 @@ Candidate insertion points:
 Current boundary: do not implement FujiNet inside slot `$22`. Treat slot `$13`
 as the transport service candidate, but defer design until Phase G4 proves how
 incoming bytes become `PLAYER_INPUT_STATUS`.
+
+## FujiNet Setup Analogue
+
+The closest current design analogue is MIDI-MATE's callback-vector model, not
+the modem command strings. MIDI-MATE installs a full `NET_CALL_VECTOR_0..6`
+family for direct byte transport and then joins the shared `L863D` handshake.
+That shape is a good fit for a future FujiNet transport because bank 12 already
+abstracts setup and gameplay byte operations through the vector table.
+
+The SX212/Atari 850 path is still useful as a reference if FujiNet is exposed
+through a CIO-style device. It shows how bank 12 loads/configures a handler,
+uses CIO status/error returns, and still converges at `L83B2`/`L863D`. The AT
+command strings themselves are not a good FujiNet analogue.
+
+First-pass boundary for a FujiNet setup path:
+
+| Decision area | Current best analogue | Notes |
+|---|---|---|
+| Byte RX/TX interface | MIDI-MATE vector family | Implement a complete vector set rather than patching individual reads/writes. |
+| Shared game setup | `L863D` | Reuse the existing handshake if FujiNet can preserve `$A0/$A1`, pending command, timeout, and player-index semantics. |
+| CIO/device initialization | SX212/850 path | Relevant only if FujiNet requires an `N:`/device handler open/status flow. |
+| Timeout/error handling | Existing `NET_TIMEOUT_TICKS`, `NET_ERROR_CODE`, `$C7` timeout convention | Preserve visible setup error behavior until a new error table is intentionally designed. |
+
+Open design question for later phases: whether FujiNet should use
+`LINK_MODE_DIRECT_OR_LOCAL` with a distinct entry label like MIDI-MATE, or a new
+nonzero mode value so modem-style checksum/probe branches remain available.

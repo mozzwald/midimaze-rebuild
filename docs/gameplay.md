@@ -12,7 +12,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 
 - [x] Mode selection and setup state mapped.
 - [x] Main gameplay loop mapped.
-- [ ] Transport-specific setup paths mapped.
+- [x] Transport-specific setup paths mapped.
 - [ ] Incoming player data path mapped.
 - [ ] Player state arrays deep-mapped.
 - [ ] Human versus bot split mapped.
@@ -138,3 +138,76 @@ waits `L9A81`, `L9A99`, `L9AC2`, `L9ADF`, and `L9B17`.
 `L95D0` temporarily redirects slot `$13` to `BANK_RETURN` (`$AF36`) during the
 hold/sync master path, then `L9613` restores it to bank 4 `$8000`. Any future
 transport hook must account for this volatility.
+
+## Transport-Specific Setup Paths
+
+Bank 12 owns the setup path selection and callback-vector installation. The
+transport-specific entries differ mostly in which `NET_CALL_VECTOR_0..6`
+callbacks they install and which device/probe work they perform before joining
+the shared setup handshake.
+
+### Transport Setup Table
+
+| Transport | Entry | `SETUP_LINK_MODE` | Callback set | Setup work before convergence | Success target | Failure target |
+|---|---|---:|---|---|---|---|
+| SOLO | `SETUP_SOLO_ENTRY` | `LINK_MODE_DIRECT_OR_LOCAL` / `$00` | Fixed-bank local ring callbacks at `$AF51/$AF5A/$AF5D/$AF62/$AF6C` | Clears `AUDCTL`, installs short timeout `$02`, no OS `R:` load. | `L863D` | `L86B4` after shared handshake errors |
+| MIDI-MATE | `SETUP_MIDIMATE_ENTRY` | `LINK_MODE_DIRECT_OR_LOCAL` / `$00` | Fixed-bank MIDI/POKEY callbacks copied from the jump table bytes at `$BE04-$BE11`: RX read `$BEE9`, TX send `$BEC7`, RX count `$BEF7`, install `$BEFD`, remove `$BF67`/`$BF6D` path | Installs timeout `$06`; `L863D` calls vector 3, which targets `MIDI_INSTALL` for this path. | `L863D` | `L86B4` after shared handshake errors |
+| XM301 | `SETUP_XM301_ENTRY` | `LINK_MODE_XM301` / `$01` | `R:`/CIO-style callbacks: close `$B135`, put byte `$B147`, status/readiness `$B131`, no-op `$AF5A`, and XM301-specific command helpers near `$B1AE/$B1C6` | Restores `MEMLO`, calls slot `$20` with `Y=0` to load bank 5 payload, calls `LB15B`/`LB0E5`, sends escape/setup bytes through `LB147`, then enters the common modem probe path. | `L83B2`, then `L863D` after probe/carrier success | `L8288`, `L83EA`, or `L845D` |
+| SX212 | `SETUP_SX212_ENTRY` | `LINK_MODE_SX212` / `$02` | Shared `R:`/CIO callback family: close `$B135`, put byte `$B147`, readiness `$B125`, open/init `$B193`, helpers `$B15B/$B1A5` | Restores `MEMLO`, calls slot `$20` with `Y=1`, initializes `R:`, sends `+++`, waits, sends `ATH`, calls slot `$18`, then enters common modem probe. | `L83B2`, then `L863D` after probe/carrier success | `L8367`, `L83EA`, or `L845D` |
+| Atari 850 | `SETUP_ATARI_850_ENTRY` | `LINK_MODE_ATARI_850` / `$03` | Same shared `R:`/CIO callback family as SX212 | Skips the bank 5 payload load, runs the extra CIO command `$22` with `ICAX1=$C0`, then runs the common CIO command `$26`, `+++`, `ATH`, slot `$18`, and probe path. | `L83B2`, then `L863D` after probe/carrier success | `L8364`, `L8367`, `L83EA`, or `L845D` |
+
+### Shared Convergence
+
+`L83B2` is the common modem/850 probe branch. It calls slot `$1F` to determine
+whether this machine should start a dial/answer path or wait for incoming setup
+state. From there:
+
+- `L83C3` calls `NET_CALL_VECTOR_3`, formats dial/answer bytes with `L8481`,
+  waits, checks carrier with `L8530`, and jumps to `L863D` on success.
+- `L83F0` displays a wait/status message. XM301 uses the escape/`G` path at
+  `L8463`; SX212/850 send `ATS0=1`-style bytes before carrier wait. Both paths
+  jump to `L863D` after `L8530` reports carrier.
+
+`L863D` is the shared setup handshake for direct/local and modem/850 paths. It
+patches volatile bank-call slot `$11` to bank 12 `$9007`, redirects slots `$1B`
+and `$13` to `BANK_RETURN`, calls `NET_CALL_VECTOR_3`, clears setup scratch,
+and then splits only on `SETUP_LINK_MODE`:
+
+- Direct/local modes jump to `L86DE`, run a short `NET_SERVICE_WAIT_POLL`,
+  send `$00`, and branch to either the master path at `L86F5` or slave path
+  `L8B81`.
+- Nonzero modem/850 modes run the `$A0/$A1` probe. The local player index is
+  set from `SETUP_LAST_SLOT1F_RESULT`; player 0 enters `L86F5`, while nonzero
+  players enter `L8B81`.
+
+### Callback Roles
+
+The seven vector words at `$3ED3-$3EE0` are called through fixed-bank wrappers
+`NET_CALL_VECTOR_0..6`.
+
+| Vector | Observed setup role |
+|---:|---|
+| 0 | Receive/read byte or status-producing poll, depending on transport. |
+| 1 | Transmit/write one byte. |
+| 2 | Readiness/byte-available predicate used by `NET_SERVICE_WAIT_POLL` and `NET_VECTOR_WAIT_POLL`. |
+| 3 | Transport open/init/reset hook before shared setup work. |
+| 4 | Transport close/remove hook in some paths. |
+| 5 | Hold/sync or transport-specific helper used during resync/control paths. |
+| 6 | Resume/reopen or companion helper used after hold/sync/control paths. |
+
+The exact vector semantics are transport-dependent; this is why future
+transport work should install a complete vector family instead of replacing
+individual call sites piecemeal.
+
+### Error Paths
+
+Most setup failures store a status byte in `NET_ERROR_CODE`, print it through
+`PRINT_STATUS_MESSAGE`, and return to `RESET_TO_MENU`. CIO-backed helpers store
+the OS/CIO status in `NET_ERROR_CODE` when `CIOV` returns negative. The fixed
+wait helper `NET_VECTOR_WAIT_POLL` writes `$C7` on timeout. Some setup branches
+treat `$C7` as retryable, especially while waiting for carrier/probe bytes; if
+the retry is not allowed, the same value is displayed as the setup error.
+
+`ERR_TOO_MANY_MACHINES` is set in the shared player-count exchange when the
+remote count is `$11` or greater. Checksum errors later use `ERR_CHECKSUM`, but
+those belong to the gameplay-parameter/checksum paths after transport setup.
