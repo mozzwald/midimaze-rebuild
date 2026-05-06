@@ -41,6 +41,26 @@ readable:
 Do not rename broad sets of labels simply for aesthetics. Human-readable names
 must improve understanding while preserving byte-exact output.
 
+## Gameplay and FujiNet research roadmap
+
+The persistent gameplay/FujiNet research plan is
+`ref/GAMEPLAY_FUJINET_RESEARCH_PLAN.md`.
+
+When doing work whose purpose is to understand gameplay, networking, transport
+setup, player data flow, maze loading, or future FujiNet integration:
+
+1. Read `ref/GAMEPLAY_FUJINET_RESEARCH_PLAN.md` before editing source.
+2. Work phase by phase, starting with the first unchecked item with enough
+   evidence to complete safely.
+3. Prefer `docs/gameplay.md`, `docs/fujinet-porting.md`, and bank-local
+   comments for flow documentation.
+4. Promote names into `include/*.inc` only after cross-bank behavior is proven.
+5. Do not implement FujiNet behavior during research phases unless explicitly
+   asked; define insertion points and constraints first.
+6. Run `make compare` after source comments/names.
+7. Commit each completed gameplay/FujiNet research phase with a brief
+   descriptive message.
+
 For each change:
 
 1. Assemble the ROM.

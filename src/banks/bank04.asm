@@ -155,6 +155,10 @@ L8064	STA	L3EBB,X
 	LDA	#$01
 	STA	L3EBA
 	JMP	BANK_RETURN
+; Slot $13 live input/status exchange. L3EB9 is the exchange phase: zero
+; starts a local status packet, one waits for a remote status byte, and larger
+; values wait for a companion/control byte. Bank 12 spins on this state before
+; allowing bank 0 gameplay updates to run.
 L8080	LDX	L3EB9
 	BEQ	L808E
 	DEX
@@ -266,6 +270,8 @@ L8170	LDA	LOCAL_PLAYER_INDEX
 	STA	NET_TIMEOUT_DEADLINE
 	JSR	L802A
 L8185	JMP	BANK_RETURN
+; Receive the first byte for the next remote human slot. Non-negative bytes
+; are ordinary input/status; negative bytes mark that a companion byte follows.
 L8188	JSR	NET_CALL_VECTOR_2
 	BEQ	L81D2
 	CLC
@@ -304,6 +310,9 @@ L81D2	LDA	L00B3
 	STA	NET_ERROR_CODE
 L81DE	JSR	L802A
 	JMP	BANK_RETURN
+; Receive the companion byte for a prior high-bit PLAYER_INPUT_STATUS marker.
+; The byte is stored in the per-player $2B00 buffer and later scanned for
+; pending command/control values.
 L81E4	JSR	NET_CALL_VECTOR_2
 	BEQ	L81D2
 	CLC
@@ -335,6 +344,8 @@ L820D	JMP	BANK_RETURN
 	.byte	$3E ; '>'
 	.byte	$D0
 	.byte	$EC
+; Completed exchange: scan human slots, split ordinary status from
+; high-bit command/control companions, update trail buffers, and clear L3EB9.
 L821E	LDX	#$00
 	STX	L3EB9
 	STX	L3ECB

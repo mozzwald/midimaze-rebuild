@@ -18,6 +18,20 @@ These include symbols are intended to be reused across banks. Game-private
 `Lxxxx` labels remain local until their role is proven by cross-references or
 emulator traces.
 
+## Maze Buffer
+
+The final maze buffer is in RAM at `$3000-$37FF`.
+
+| Name | Address/value | Role |
+|---|---:|---|
+| `MAZE_CELL_WALL_BASE` | `$3000` | Base of the wall/cell byte plane. Fixed-bank cell helpers address cells as base + row*$40 + column. |
+| `MAZE_CELL_OCCUPANCY_OFFSET` | `$20` | Offset from a wall byte to the matching occupancy/list-head byte for the same cell. |
+| `MAZE_CELL_ROW_STRIDE` | `$40` | Byte stride between rows in the final maze buffer. |
+
+Bank 6 slot `$23` initializes this buffer from packed built-in maze data, and
+bank 12 setup/resync paths can transfer either compact cell bytes or an
+expanded final buffer. `MAZE_SIZE_INDEX` bounds active rows/columns.
+
 ## Cartridge Banking
 
 - `CART_BANK_SELECT = $D500`: cartridge control region used to select banks.
@@ -50,7 +64,7 @@ semantic naming.
 | `$00` | `$00` | `$B511` | `FIXED_DRAW_FIELD_7380_FILL_ENTRY` | `bank14:L8015` |
 | `$01` | `$00` | `$B579` | `FIXED_FRAME_DISPLAY_SERVICE_ENTRY` | `bank14:L8061`, `bank14:L9D91`, `bank14:L9D9E`, `bank15:LB3A6` |
 | `$02` | `$0D` | `$8000` | `BANK13_PLAYER_PLACEMENT_SETUP_ENTRY` | - |
-| `$03` | `$0D` | `$8185` | `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | - |
+| `$03` | `$0D` | `$8185` | `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | registered player/maze update entry; no active caller proven yet |
 | `$04` | `$0E` | `$8000` | `BANK14_DRAW_STATE_CLEAR_ENTRY` | `bank12:L888B`, `bank12:L8C94`, `bank12:L9857` |
 | `$05` | `$0E` | `$8011` | `BANK14_DISPLAY_SCRATCH_CLEAR_ENTRY` | - |
 | `$06` | `$0E` | `$81FB` | `BANK14_SLOT06_DRAW_SERVICE_ENTRY` | - |
@@ -66,9 +80,9 @@ semantic naming.
 | `$10` | `$0D` | `$8900` | `BANK13_SETUP_PLACEMENT_DISPATCH_ENTRY` | `bank12:L888B`, `bank12:L8C94`, `bank12:L9857` |
 | `$11` | `$0C` | `$0000` | volatile slot patched before use | patched by bank 12 |
 | `$12` | `$0C` | `$8000` | `BANK12_BOOT_MENU_ENTRY` | `bank15:CART_STRT` |
-| `$13` | `$04` | `$8000` | `BANK4_NET_COMMAND_SERVICE_ENTRY` | frequent net command send/service paths |
+| `$13` | `$04` | `$8000` | `BANK4_NET_COMMAND_SERVICE_ENTRY` | `bank12:L9A2D` live service, pre-live/resync/hold wait loops |
 | `$14` | `$04` | `$8003` | `BANK4_SLOT14_SERVICE_ENTRY` | `bank12:L879E`, `bank12:L94FC` |
-| `$15` | `$04` | `$8006` | `BANK4_SLOT15_SERVICE_ENTRY` | `bank12:L81B5` |
+| `$15` | `$04` | `$8006` | `BANK4_SLOT15_SERVICE_ENTRY` | `bank12:MODE_SELECTION_DISPATCH` |
 | `$16` | `$04` | `$8009` | `BANK4_SLOT16_SERVICE_ENTRY` | `bank12:L87EE` |
 | `$17` | `$04` | `$800C` | `BANK4_SLOT17_SERVICE_ENTRY` | `bank12:L9430` |
 | `$18` | `$04` | `$800F` | `BANK4_SLOT18_SERVICE_ENTRY` | `bank12:L8392` |
@@ -79,7 +93,7 @@ semantic naming.
 | `$1D` | `$04` | `$801E` | `BANK4_SLOT1D_SERVICE_ENTRY` | `bank12:L8998`, `bank12:L94D3` |
 | `$1E` | `$04` | `$8021` | `BANK4_SLOT1E_SERVICE_ENTRY` | `bank12:L953F` |
 | `$1F` | `$04` | `$8024` | `BANK4_SLOT1F_SERVICE_ENTRY` | `bank12:L83B2`, `bank12:L83C3` |
-| `$20` | `$05` | `$8000` | `BANK5_PAYLOAD_LOADER_ENTRY` | `bank12:L81E2`, `bank12:L829E` |
+| `$20` | `$05` | `$8000` | `BANK5_PAYLOAD_LOADER_ENTRY` | `bank12:SETUP_XM301_ENTRY`, `bank12:SETUP_R_HANDLER_SHARED` |
 | `$21` | `$02` | `$8000` | `BANK2_SETUP_FINALIZE_ENTRY` | setup/roster finalization paths in bank 12 |
 | `$22` | `$00` | `$8000` | `BANK0_GAMEPLAY_UPDATE_ENTRY` | `bank12:L9A2D` gameplay loop |
 | `$23` | `$06` | `$8000` | `BANK6_MAZE_DATA_INIT_ENTRY` | initial table entry; no active call site proven yet |
@@ -99,6 +113,13 @@ Known volatile slot patches:
 - Slot `$1B`: `bank12:L863D` patches this to `BANK_RETURN`. `bank12:L93F8`
   and `bank12:L9504` restore it to bank 4 `$8018`
   (`BANK4_NET_STATE_RESET_ENTRY`) before the setup/gameplay loop calls it.
+
+G7 extension note:
+
+- No bank-call slot is currently documented as safe to repurpose. Slots with no
+  proven active caller remain initialized table entries, not free space. Future
+  FujiNet work should prefer the transport callback vector family or a tightly
+  compatible slot `$13` wrapper over adding/reusing a bank-call slot.
 
 Several targets remain intentionally byte-form in source because adjacent
 regions mix executable landing pads with data. Their labels document confirmed
@@ -188,6 +209,7 @@ the fixed-bank helpers.
 
 | Name | Address | Evidence / role |
 |---|---:|---|
+| `L2B00` | `$2B00` | Bank 4 per-player companion byte buffer for high-bit `PLAYER_INPUT_STATUS` markers. `$FF` means no command; negative companion bytes can become `PENDING_NET_COMMAND`; `$08`/`$0D` drive trail/status handling. Still generated in source until a stable shared name is promoted. |
 | `SETUP_TEAM_PLAY_FLAG` | `$3CE6` | Setup payload scalar; toggles team-style handling in banks 0, 1, 4, 12, and 13. When nonzero, bank 13 compares player teams and updates `TEAM_SCORE_COUNTERS`. |
 | `SETUP_TEAM_OPTION_FLAG` | `$3CE7` | Setup payload scalar sent after `SETUP_TEAM_PLAY_FLAG`; displayed in bank 4 and used by bank 13 in the team-play branch. |
 | `SETUP_SYNC_TOGGLE_FLAG` | `$3CE8` | Toggled by MIDI/net byte `$7F` in bank 4 and reset during setup/gameplay parameter exchange. Exact UI meaning still needs emulator confirmation. |
@@ -195,7 +217,7 @@ the fixed-bank helpers.
 | `PLAYER_RELOAD_TIMER` | `$3D09` | Second gameplay parameter byte; default `$64`; used by bank 13 to reload `PLAYER_STATE_TIMER`. |
 | `PLAYER_PROJECTILE_LIFE` | `$3CF9` | Third gameplay parameter byte; default `$32`; used when player state decrements to zero. |
 | `PLAYER_WEAPON_MODE` | `$3CE9` | Fourth gameplay parameter byte; default `$02`; controls player state transitions in bank 13. |
-| `PLAYER_INPUT_STATUS` | `$3D29` | Per-player live input/status byte written by bank 4 network service and bank 0 local/control logic. |
+| `PLAYER_INPUT_STATUS` | `$3D29` | Per-player live input/status byte written by bank 4 network service and bank 0 local/control logic. Bank 4 uses the sign bit to mark a companion command/control byte in `$2B00+player`; bank 13 slot `$03` copies the selected player's byte into `L00C7` for movement/fire handling. |
 | `TEAM_SCORE_COUNTERS` | `$3D39` | Four-byte team/status counter array. Bank 13 increments it on team-play events and display code compares it against `L3DB7`. |
 | `NET_TIMEOUT_DEADLINE` | `$3ECF` | Deadline byte computed as `L00B3 + NET_TIMEOUT_TICKS` by bank 4 and fixed-bank wait helpers. |
 | `NET_TIMEOUT_TICKS` | `$3ED0` | Timeout duration selected by bank 12 when patching network callback modes. |
@@ -206,7 +228,8 @@ the fixed-bank helpers.
 | `OUTGOING_NET_COMMAND` | `$3EE8` | Extended command queued by bank 12 for bank 4 injection into the command stream. |
 | `SETUP_REFRESH_DEADLINE` | `$3EEB` | Set to `L00B3 + $64` after setup/menu refresh points in banks 12 and 15. No active reads are confirmed yet. |
 | `BOT_COUNT_TARGET`, `BOT_COUNT_DRONE`, `BOT_COUNT_NINJA`, `BOT_COUNT_NASTY` | `$3EED-$3EEF`, `$3F13` | Setup bot counts; Nasty and Ninja share one packed protocol byte during resync. |
-| `SETUP_LINK_MODE` | `$3F07` | Setup path selector with observed values `$00-$03`; controls which callback vector set bank 12 installs. |
+| `PLAYER_BOT_TYPE` | `$3F16` | Per-player bot dispatch type filled by bank 1 from the four bot counts. `$FF` means human/inactive; `$00-$03` dispatch to the four bank 0 bot behavior paths. |
+| `SETUP_LINK_MODE` | `$3F07` | Setup path selector with values `LINK_MODE_DIRECT_OR_LOCAL`, `LINK_MODE_XM301`, `LINK_MODE_SX212`, and `LINK_MODE_ATARI_850`; controls which callback vector set bank 12 installs. |
 | `SETUP_LAST_SLOT1F_RESULT` | `$3F08` | Result byte returned from bank-call slot `$1F` during setup probing. |
 | `SETUP_RESUME_FLAG` | `$3F09` | Resume/re-entry flag checked with `SETUP_LINK_MODE` before returning to setup flow. |
 | `SETUP_HOLD_SYNC_FLAG` | `$3F0A` | Set by bank 4 on command byte `$1B`; checked by bank 12 hold/sync loops. |
@@ -257,6 +280,7 @@ the order used by `MASTER_SEND_SETUP_PAYLOAD` and
 | `MAZE_CELL_PLAYER_NEXT` | `$3A52` | `$10` | not on wire | Per-player next pointer for the maze-cell occupancy linked list. |
 | `PLAYER_HIT_BY_INDEX` | `$3AD2` | `$10` | not on setup payload | Player index associated with the current hit/collision event. |
 | `PLAYER_TEAM_INDEX` | `$3AF2` | `$10` | setup/team assignment | Team number initialized from player index and used by team-play scoring. |
+| `PLAYER_BOT_TYPE` | `$3F16` | `$10` | bot setup | Bot dispatch type for slots at or above `HUMAN_PLAYER_COUNT`; human/inactive slots use `$FF`. |
 | `PLAYER_FIRE_COOLDOWN` | `$3D19` | `$10` | gameplay param 1 | Default `$0A`; first byte of the pre-game gameplay parameter relay. |
 | `PLAYER_RELOAD_TIMER` | `$3D09` | `$10` | gameplay param 2 | Default `$64`; copied into state timers by gameplay update code. |
 | `PLAYER_PROJECTILE_LIFE` | `$3CF9` | `$10` | gameplay param 3 | Default `$32`; projectile/player state duration. |
@@ -290,11 +314,26 @@ bank 15 MIDI/POKEY transport.
 - `BOT_COUNT_TARGET = $3EED`, `BOT_COUNT_DRONE = $3EEE`,
   `BOT_COUNT_NINJA = $3EEF`, `BOT_COUNT_NASTY = $3F13`: setup bot counts.
   Nasty and Ninja are packed into one byte on the wire during resync.
+- `PLAYER_BOT_TYPE = $3F16`: per-player bot dispatch type. Bank 1 writes
+  `$00-$03` after the human range based on the bot counts, and bank 0 slot
+  `$22` dispatches those values during gameplay.
 - `NET_ERROR_CODE = $3ED2`: status/error code consumed by
   `PRINT_STATUS_MESSAGE`.
 - `PENDING_NET_COMMAND = $3EE7`: extended command byte received from the ring.
 - `OUTGOING_NET_COMMAND = $3EE8`: extended command byte to inject into the
   ring.
+
+Named command/control bytes:
+
+| Name | Value | Role |
+|---|---:|---|
+| `CMD_INIT_RING` | `$80` | Pre-live/start companion and raw hold/sync acknowledge byte. |
+| `CMD_CLEAR_STATE` | `$81` | Clears transient score/state mirrors through `NET_COMMAND_DISPATCH`. |
+| `CMD_HOLD_SYNC` | `$82` | Hold/pause/sync command. |
+| `MARKER_SETUP_PAYLOAD` | `$83` | Direct setup/resync payload marker for `MASTER_SEND_SETUP_PAYLOAD` / `SLAVE_RECEIVE_SETUP_PAYLOAD`. |
+| `CMD_RESYNC` | `$84` | Resynchronizes setup/gameplay state. |
+| `CMD_ROSTER_EXCHANGE` | `$86` | Starts roster/status exchange through bank 12 `L8F57`. |
+| `CMD_START_GAME` | `$87` | Named but not actively referenced in current source; reserved/unverified. |
 
 Named bank 12 protocol routines:
 

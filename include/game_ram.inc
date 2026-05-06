@@ -10,6 +10,13 @@ BANK_CALL_BANK_ID	= $3D8E
 MIDI_RX_BUFFER	= $2D00
 MIDI_TX_BUFFER	= $2E00
 
+; Maze cell RAM. Fixed-bank cell helpers address cells as
+; MAZE_CELL_WALL_BASE + row*$40 + column; the occupancy/list-head byte for the
+; same cell is MAZE_CELL_OCCUPANCY_OFFSET bytes after the wall byte.
+MAZE_CELL_WALL_BASE	= $3000
+MAZE_CELL_OCCUPANCY_OFFSET	= $20
+MAZE_CELL_ROW_STRIDE	= $40
+
 ; Status/message line buffers used by the menu, setup, and error UI.
 STATUS_LINE_BUFFER	= $72C0
 STATUS_ERROR_PREFIX	= $72C1
@@ -51,6 +58,7 @@ BOT_COUNT_TARGET	= $3EED
 BOT_COUNT_DRONE	= $3EEE
 BOT_COUNT_NINJA	= $3EEF
 BOT_COUNT_NASTY	= $3F13
+PLAYER_BOT_TYPE	= $3F16
 
 SETUP_TEAM_PLAY_FLAG	= $3CE6
 SETUP_TEAM_OPTION_FLAG	= $3CE7
@@ -70,6 +78,13 @@ STARTUP_KEYBOARD_MODE_FLAG	= $3F0D
 SAVED_MEMLO_LO	= $3F0F
 SAVED_MEMLO_HI	= $3F10
 SETUP_CHECKSUM_RETRY_COUNT	= $3F12
+
+; Values stored in SETUP_LINK_MODE. The mode value is not identical to the
+; menu selection: SOLO and MIDI-MATE both use LINK_MODE_DIRECT_OR_LOCAL.
+LINK_MODE_DIRECT_OR_LOCAL	= $00
+LINK_MODE_XM301	= $01
+LINK_MODE_SX212	= $02
+LINK_MODE_ATARI_850	= $03
 
 ; Per-player runtime arrays, mostly 16-byte stride. These names are based on
 ; setup payload order, movement/collision usage, and gameplay parameter relay.

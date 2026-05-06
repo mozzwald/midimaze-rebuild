@@ -278,8 +278,10 @@ L8179	DEC	FR1+3
 	BEQ	L8184
 L8181	JMP	L808A
 L8184	RTS
-; Slot $03 entry. Player/maze update service landing pad, kept byte-form until
-; the preceding data byte boundary is fully proven.
+; Slot $03 entry. Byte-level decode starts at $8185 as:
+;   LDX L00AC; LDA PLAYER_INPUT_STATUS,X; STA L00C7
+; The source keeps the boundary byte-form until the adjacent data/code split is
+; fully proven, but L00C7 is the status byte consumed below.
 BANK13_PLAYER_MAZE_UPDATE_ENTRY	.byte	$A6
 L8186	LDY	L29BD
 	AND	LC785,X

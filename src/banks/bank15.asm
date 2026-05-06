@@ -3510,8 +3510,10 @@ BANK_RETURN	STA	L0087
 	STA	CART_BANK_SELECT
 	LDA	L0087
 	RTS
+; Alternate direct bank trampoline at $AF41. Callers load Y with the target low
+; byte, X with the target high byte, and A with the bank select byte. The first
+; two emitted bytes are the operands/opcodes for STY L0087 and STX L0088.
 	.byte	$84
-; Alternate bank trampoline entry; exact calling convention still unverified.
 LAF42	.byte	$87,$86 ; (undocumented opcode) - SAX L0086
 	DEY
 	TAX
