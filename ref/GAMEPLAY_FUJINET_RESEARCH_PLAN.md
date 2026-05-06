@@ -43,6 +43,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   install direct callback vectors and enter `L863D`; XM301, SX212, and Atari
   850 perform device/modem setup through the `R:`/CIO family before converging
   through `L83B2` and `L863D`.
+- [x] Complete Phase G4 incoming player data path map. Bank 4 slot `$13`
+  owns the live status exchange, writes human `PLAYER_INPUT_STATUS` bytes,
+  stores companion command bytes in `$2B00`, and bank 13 consumes status through
+  the slot `$03` byte entry copy into `L00C7`.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -111,22 +115,22 @@ Verification gate:
 
 Goal: trace remote input/status bytes from transport read to gameplay consume.
 
-- [ ] Identify where raw bytes are read from MIDI/transport during gameplay.
-- [ ] Identify where command/control bytes are separated from player data.
-- [ ] Identify where remote player bytes are stored.
-- [ ] Identify all writes to `PLAYER_INPUT_STATUS`.
-- [ ] Identify all consumers of `PLAYER_INPUT_STATUS`.
-- [ ] Document local player input packing versus remote input unpacking.
-- [ ] Document timing/latency assumptions, including ring-buffer polling and
+- [x] Identify where raw bytes are read from MIDI/transport during gameplay.
+- [x] Identify where command/control bytes are separated from player data.
+- [x] Identify where remote player bytes are stored.
+- [x] Identify all writes to `PLAYER_INPUT_STATUS`.
+- [x] Identify all consumers of `PLAYER_INPUT_STATUS`.
+- [x] Document local player input packing versus remote input unpacking.
+- [x] Document timing/latency assumptions, including ring-buffer polling and
   frame boundaries.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has an incoming player data flow from transport read
+- [x] `docs/gameplay.md` has an incoming player data flow from transport read
   to `PLAYER_INPUT_STATUS` consumer.
-- [ ] `docs/fujinet-porting.md` lists the minimum semantics a FujiNet RX path
+- [x] `docs/fujinet-porting.md` lists the minimum semantics a FujiNet RX path
   must preserve.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G5: Player State Arrays Deep Map
 

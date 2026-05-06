@@ -63,3 +63,23 @@ First-pass boundary for a FujiNet setup path:
 Open design question for later phases: whether FujiNet should use
 `LINK_MODE_DIRECT_OR_LOCAL` with a distinct entry label like MIDI-MATE, or a new
 nonzero mode value so modem-style checksum/probe branches remain available.
+
+## Incoming Byte Semantics
+
+A FujiNet RX/TX path must preserve bank 4 slot `$13` semantics, not just deliver
+bytes. The critical behavior is the two-stage player status exchange:
+
+| Required semantic | Current location | FujiNet implication |
+|---|---|---|
+| Byte-ready predicate | `NET_CALL_VECTOR_2` used by bank 4 `L8188`/`L81E4` | Must be cheap and nonblocking; returning not-ready keeps bank 12 in the slot `$13` service loop. |
+| Read one byte | `NET_CALL_VECTOR_0` | Must return the received byte in `A` and preserve the current `NET_ERROR_CODE` convention. |
+| Write one byte | `NET_CALL_VECTOR_1` | Must send both ordinary status bytes and high-bit marker/companion pairs in order. |
+| High-bit first byte | bank 4 `L81A3-L81C3` | Means a companion byte follows for that player. Do not reinterpret it as only signed data. |
+| Companion byte storage | `$2B00 + player index` | Required for pending commands and input/status trail behavior. |
+| Pending command latch | `PENDING_NET_COMMAND` at bank 4 `L821E-L82C7` | Negative companion bytes other than `$FF` become commands consumed by bank 12. |
+| Exchange pacing | `L3EB9`, `L3ECB`, `L3ECC`, `NET_TIMEOUT_DEADLINE` | FujiNet must fit the existing state machine or replace all dependent checks, including bank 12's `L3EB9` spin. |
+| Timeout | `NET_ERROR_CODE = $C7` | Preserve until a new user-visible error strategy is intentionally designed. |
+
+Do not bypass `PLAYER_INPUT_STATUS`. Bank 13 movement consumes it through the
+slot `$03` byte entry, which copies `PLAYER_INPUT_STATUS[player]` into `L00C7`
+before applying move/turn/fire bits.

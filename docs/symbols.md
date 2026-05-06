@@ -188,6 +188,7 @@ the fixed-bank helpers.
 
 | Name | Address | Evidence / role |
 |---|---:|---|
+| `L2B00` | `$2B00` | Bank 4 per-player companion byte buffer for high-bit `PLAYER_INPUT_STATUS` markers. `$FF` means no command; negative companion bytes can become `PENDING_NET_COMMAND`; `$08`/`$0D` drive trail/status handling. Still generated in source until a stable shared name is promoted. |
 | `SETUP_TEAM_PLAY_FLAG` | `$3CE6` | Setup payload scalar; toggles team-style handling in banks 0, 1, 4, 12, and 13. When nonzero, bank 13 compares player teams and updates `TEAM_SCORE_COUNTERS`. |
 | `SETUP_TEAM_OPTION_FLAG` | `$3CE7` | Setup payload scalar sent after `SETUP_TEAM_PLAY_FLAG`; displayed in bank 4 and used by bank 13 in the team-play branch. |
 | `SETUP_SYNC_TOGGLE_FLAG` | `$3CE8` | Toggled by MIDI/net byte `$7F` in bank 4 and reset during setup/gameplay parameter exchange. Exact UI meaning still needs emulator confirmation. |
@@ -195,7 +196,7 @@ the fixed-bank helpers.
 | `PLAYER_RELOAD_TIMER` | `$3D09` | Second gameplay parameter byte; default `$64`; used by bank 13 to reload `PLAYER_STATE_TIMER`. |
 | `PLAYER_PROJECTILE_LIFE` | `$3CF9` | Third gameplay parameter byte; default `$32`; used when player state decrements to zero. |
 | `PLAYER_WEAPON_MODE` | `$3CE9` | Fourth gameplay parameter byte; default `$02`; controls player state transitions in bank 13. |
-| `PLAYER_INPUT_STATUS` | `$3D29` | Per-player live input/status byte written by bank 4 network service and bank 0 local/control logic. |
+| `PLAYER_INPUT_STATUS` | `$3D29` | Per-player live input/status byte written by bank 4 network service and bank 0 local/control logic. Bank 4 uses the sign bit to mark a companion command/control byte in `$2B00+player`; bank 13 slot `$03` copies the selected player's byte into `L00C7` for movement/fire handling. |
 | `TEAM_SCORE_COUNTERS` | `$3D39` | Four-byte team/status counter array. Bank 13 increments it on team-play events and display code compares it against `L3DB7`. |
 | `NET_TIMEOUT_DEADLINE` | `$3ECF` | Deadline byte computed as `L00B3 + NET_TIMEOUT_TICKS` by bank 4 and fixed-bank wait helpers. |
 | `NET_TIMEOUT_TICKS` | `$3ED0` | Timeout duration selected by bank 12 when patching network callback modes. |

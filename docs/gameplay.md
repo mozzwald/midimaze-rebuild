@@ -13,7 +13,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 - [x] Mode selection and setup state mapped.
 - [x] Main gameplay loop mapped.
 - [x] Transport-specific setup paths mapped.
-- [ ] Incoming player data path mapped.
+- [x] Incoming player data path mapped.
 - [ ] Player state arrays deep-mapped.
 - [ ] Human versus bot split mapped.
 - [ ] Network command/control bytes mapped.
@@ -211,3 +211,104 @@ the retry is not allowed, the same value is displayed as the setup error.
 `ERR_TOO_MANY_MACHINES` is set in the shared player-count exchange when the
 remote count is `$11` or greater. Checksum errors later use `ERR_CHECKSUM`, but
 those belong to the gameplay-parameter/checksum paths after transport setup.
+
+## Incoming Player Data Path
+
+Bank 4 slot `$13` is the live input/status transport service. Bank 12 calls it
+from the `L9A2D` service slice before bank 0 gameplay updates, and bank 12
+spins while bank 4's `L3EB9` state is nonzero. That means one visible gameplay
+slice does not advance to slot `$22` until the current human-player status
+exchange has either completed or errored.
+
+### Receive And Separation Flow
+
+| Step | Location | Data | Effect |
+|---:|---|---|---|
+| 1 | bank 4 `L8080` | `L3EB9` | Selects the exchange state: `0` starts a new local packet, `1` waits for a remote first byte, greater than `1` waits for a remote auxiliary/control byte. |
+| 2 | bank 4 `L80A1` | `MIDI_RX_HAS_BYTE` / `MIDI_RX_READ_BLOCKING` | Polls the generic incoming byte ring before packing local joystick state. Recognized local bytes include `$9B`, `$7E`, `$7F`, and `$1B`. |
+| 3 | bank 4 `L8115-L814B` | local byte plus `STICK0`/`STRIG0` | Stores the raw/control byte for the local slot in `$2B00 + LOCAL_PLAYER_INDEX`, combines its high-bit marker with packed local joystick bits, and writes `PLAYER_INPUT_STATUS[LOCAL_PLAYER_INDEX]`. |
+| 4 | bank 4 `L815B-L8170` | `NET_CALL_VECTOR_1` | Sends the local `PLAYER_INPUT_STATUS` byte. If the byte is negative/high-bit set, sends the companion raw/control byte from `$2B00`. |
+| 5 | bank 4 `L8188-L81C3` | `NET_CALL_VECTOR_2`, then `NET_CALL_VECTOR_0` | Waits for and reads each remote first byte. The byte is stored in `PLAYER_INPUT_STATUS,X`, walking remote player indexes backward through the human-player ring. |
+| 6 | bank 4 `L81E4-L820D` | `NET_CALL_VECTOR_0` | If a remote first byte is negative/high-bit set, reads the companion byte and stores it in `$2B00,X`. |
+| 7 | bank 4 `L821E-L82C7` | `PLAYER_INPUT_STATUS` plus `$2B00` | Clears `L3EB9`, scans human slots, turns high-bit companion command bytes into `PENDING_NET_COMMAND`, and updates the on-screen input/status trail buffers. |
+
+The transport-specific raw read/write functions are behind the callback vector
+family during the ring exchange: `NET_CALL_VECTOR_0` reads a byte,
+`NET_CALL_VECTOR_1` writes a byte, and `NET_CALL_VECTOR_2` reports whether a
+byte is ready. The pre-pack local-byte poll at `L80A1` uses the fixed helper
+names `MIDI_RX_HAS_BYTE` and `MIDI_RX_READ_BLOCKING`.
+
+### Command Versus Player Status
+
+`PLAYER_INPUT_STATUS` is both the per-player live input byte and the first-byte
+marker for extended command/control bytes. Bank 4 treats the sign bit as the
+split:
+
+- Non-negative first byte: ordinary player status. Bank 4 clears that player's
+  `$2B00` companion byte to `$FF` and forwards the status around the ring.
+- Negative first byte: command/control marker. Bank 4 expects a companion byte,
+  stores it in `$2B00,X`, and later scans it at `L821E`.
+- Negative companion byte other than `$FF`: latched as `PENDING_NET_COMMAND`.
+- Companion byte `$FF`: no pending command for that player.
+- Companion byte `$08`: decrements the per-player trail countdown in `L3EBB,X`
+  before display/trail handling.
+- Companion byte `$0D`: shifts `$7300/$7320/$7340` trail buffers and emits a
+  status-line style record for that player.
+
+Local special byte handling before the status byte is packed:
+
+| Byte | Location | Meaning |
+|---:|---|---|
+| `$9B` | `L80A1-L80C5` | Clears the input trail display area, resets `NET_INPUT_TRAIL_INDEX`, then uses `$0D` as the local companion byte. |
+| `$7E` | `L80C5-L80E1` | Deletes/backs up one trail position and uses `$08` as the local companion byte. |
+| `$7F` | `L80E1-L80F0` | Toggles `SETUP_SYNC_TOGGLE_FLAG`; no companion byte is sent for this poll. |
+| `$1B` | `L80F0-L80FC` | Sets `SETUP_HOLD_SYNC_FLAG`; no companion byte is sent for this poll. |
+| other | `L80FC-L8110` | Packs the byte for trail display with `PACK_DIRECTION_TO_STATUS_BITS` and uses the original byte as the local companion byte. |
+
+### Writers And Consumers
+
+Confirmed writers of `PLAYER_INPUT_STATUS`:
+
+| Writer | Role |
+|---|---|
+| bank 4 `L814B` | Writes local player input/status each slot `$13` service pass. |
+| bank 4 `L81A3` | Writes each remote player's first status/control byte as it is received. |
+| bank 0 gameplay update routines | Writes bot/non-human status bytes from local AI/control state during slot `$22`; representative paths are `L82E6`, timer replay at `L89A8`, reset at `L8A07`, and projectile/fire paths near `L8F14`. |
+| bank 12 `$904C/$906A/$9080` byte-level path | Additional setup/control status exchange bytes touch `PLAYER_INPUT_STATUS`; the source is still mixed byte-form in this region. |
+
+Confirmed consumers of `PLAYER_INPUT_STATUS`:
+
+| Consumer | Role |
+|---|---|
+| bank 4 `L815B-L8170` | Reads the local slot value after packing to decide whether a companion byte must be sent. |
+| bank 4 `L821E-L82C7` | Scans all human slots after a completed exchange to separate ordinary status from pending command/control bytes and update trail buffers. |
+| bank 13 slot `$03` byte entry at `$8185` | Byte-level decode is `LDX L00AC; LDA PLAYER_INPUT_STATUS,X; STA L00C7`. The visible movement/projectile code then consumes `L00C7` bits for turn, move, and fire. |
+
+### Bit Use In Movement
+
+Bank 13's visible movement code consumes the copied status byte in `L00C7`:
+
+| Bit mask | Bank 13 location | Observed effect |
+|---:|---|---|
+| `$01` | `L8285-L82AE` | Forward movement vector setup. |
+| `$02` | `L82AE-L82DF` | Reverse movement vector setup. |
+| `$04` | `L81FD-L8227` | Turn one direction by `PLAYER_TURN_RATE`. |
+| `$08` | `L8227-L8235` | Turn the other direction by `PLAYER_TURN_RATE`. |
+| `$10` | `L8235-L8273` | Fire/projectile creation if `PLAYER_FIRE_TIMER` allows it. |
+
+### Timing And Latency
+
+`L3EB9`, `L3ECB`, and `L3ECC` are the live exchange state variables in bank 4:
+
+- `L3EB9` is the phase/state. `0` starts a fresh exchange; `1` means waiting
+  for a remote first byte; values above `1` mean waiting for a companion byte.
+- `L3ECB` tracks the current player index during the ring walk.
+- `L3ECC` counts remaining human-player status bytes in the current exchange.
+- `NET_TIMEOUT_DEADLINE` is set to `L00B3 + NET_TIMEOUT_TICKS` when the
+  exchange begins and is refreshed as bytes arrive.
+- On timeout, bank 4 stores `$C7` in `NET_ERROR_CODE`.
+
+Bank 12 checks `L3EB9` immediately after slot `$13`; if it is nonzero, `L9A2D`
+calls slot `$13` again instead of running slot `$22`. This gives the transport
+service priority over bot/non-human updates while a human-player status ring is
+mid-exchange.
