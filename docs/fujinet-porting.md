@@ -15,7 +15,7 @@ gameplay path is documented with exact bank/routine/slot references.
 - [x] Human/remote/bot boundary documented.
 - [x] Bank-call extension strategy documented.
 - [x] Command semantics documented.
-- [ ] RAM/code-space risk table completed.
+- [x] RAM/code-space risk table completed.
 - [ ] Implementation boundary defined.
 
 ## Gameplay-Loop Insertion Points
@@ -184,3 +184,77 @@ Future FujiNet packets should either carry the same compact cell bytes used by
 exact `$3000` wall plane. Do not derive maze state independently on each peer
 unless `PRNG_SEED_LOW/HIGH`, `MAZE_SIZE_INDEX`, bot counts, and all setup
 options are proven to produce byte-identical `$3000` buffers.
+
+## RAM And Code-Space Risk Audit
+
+No RAM range is currently marked free for FujiNet. The ranges below are either
+active game state, live transport state, bank-call state, display state, or
+candidate-only space that still needs emulator traces before use.
+
+### RAM ranges
+
+| Range | Current role/evidence | Reuse risk | Validation required before reuse |
+|---|---|---|---|
+| `$0080-$00D3` | Shared zero-page scratch, pointers, bank-call state, timeout state, MIDI indexes, and per-bank temporary values. | High. Live code, setup code, bank-call trampoline, and interrupt paths overlap this area. | Per-routine liveness traces across boot, setup, live play, pause/hold, resync, and interrupt entry/exit. |
+| `$0082-$0086` | Fixed-bank MIDI/POKEY RX/TX indexes and TX-active flag for `MIDI_RX_BUFFER`/`MIDI_TX_BUFFER`. | Do not reuse while MIDI is installed. | Prove `MIDI_REMOVE` ran, serial vectors were restored, POKEY IRQs are disabled, and no callback still reads these indexes. |
+| `$00B1-$00B3` | `$2F00` direct RX-ring indexes plus timeout/tick state used by setup/live waits. | High. Called through fixed helpers and bank 12 wait logic. | Trace all callers of `MIDI_RX_READ_BLOCKING`, `MIDI_RX_HAS_BYTE`, and timeout comparisons. |
+| `$2B00-$2B0F` | Bank 4 per-player companion bytes for high-bit `PLAYER_INPUT_STATUS` markers. | Do not reuse. This is part of live command semantics. | Only reusable if the entire high-bit companion path is replaced and all bank 4 consumers are retargeted. |
+| `$2D00-$2EFF` | `MIDI_RX_BUFFER` and `MIDI_TX_BUFFER`, 256 bytes each, drained/fed by fixed-bank serial ISRs and send/read helpers. | Do not reuse for unrelated FujiNet state. | Prove custom MIDI ISR path is inactive and every vector/caller has been replaced or wrapped safely. |
+| `$2F00-$2FFF` | Direct helper RX ring used by fixed-bank blocking/nonblocking read helpers with `L00B1/L00B2`. | Do not reuse while original transport helpers remain callable. | Trace that no setup/live path can call the fixed helpers. |
+| `$3000-$37FF` | Final maze buffer: wall/cell plane and occupancy/list-head data used by banks 0, 1, 6, 12, 13, and 14. | Do not reuse. | None planned; FujiNet setup must preserve this layout. |
+| `$3968-$3D39` | Setup scalars, player counts, seeds, maze index, and dense per-player state arrays. | Do not reuse. | None planned; these are live gameplay contract state. |
+| `$3D3E-$3DB4` | Bank-call address/bank tables. | Do not reuse. | Only modify through a bank-call design that preserves slot semantics and volatile patch sites. |
+| `$3DB6-$3E??` | Display/status/score/vector-save state, including saved serial vectors around `$3DF8-$3DFB`. | High. Some labels remain generated, but cross-bank reads/writes exist. | Label-specific traces before changing any byte in this range. |
+| `$3ECF-$3F16` | Network/setup/player parameter state, command state, bot counts, and bot type table. | Do not reuse. | None planned; required by setup, command dispatch, and bot roster creation. |
+| `$3F26-$41DF` | Bank 0/1 bot AI, targeting, path, and transient work arrays. | High during live play. | Live gameplay traces with bots enabled and disabled before treating any subrange as temporary. |
+| `$72C0-$737F` | Status/message line buffers, input/status trail/history, and bank 4 network/status buffers. | Do not reuse. | Trace setup menu, live status, hold/sync, and error display paths before touching. |
+| `$7380+` | Display field/state region populated by fixed-bank display helpers. | High. | Display update traces and screen-memory ownership map. |
+
+### Temporary buffers
+
+| Buffer | Observed use | Reuse guidance |
+|---|---|---|
+| `$0600` | Local scratch used by banks 0/1 for `MIDI_TX_BUFFER` save/restore helpers and by bank 4 setup/UI paths. | Treat as routine-local scratch only. Do not store persistent FujiNet state here. |
+| `$3EB9-$3ECC` | Bank 4 live exchange state and command/status pacing variables. | Preserve; FujiNet must either feed these semantics or replace all dependent checks. |
+| `$40CA-$41DF` | Bank 0/1 AI/path/target scratch. | Not safe during live play, especially when bots are present. |
+| OS FP registers `FR0`, `FR1`, `FR2`, `FRE` | Used as scratch by math, placement, and drawing paths. | Do not use across calls or interrupts; only consider as tightly scoped temporary scratch after local proof. |
+
+### RX/TX buffers
+
+| Buffer | Owner | Reusable? | Notes |
+|---|---|---|---|
+| `MIDI_RX_BUFFER` `$2D00` | Fixed-bank MIDI RX ISR and blocking read helpers. | No, unless replacing and disabling the original MIDI transport path. | Interrupt-driven ring with natural 8-bit wrap. |
+| `MIDI_TX_BUFFER` `$2E00` | Fixed-bank send helper and TX ISR; also saved/restored by bank 0/1 helpers. | No, unless replacing and disabling the original MIDI transport path. | Send helper writes directly to `SEROUT` when idle and queues otherwise. |
+| `$2F00` | Fixed-bank direct RX helper ring. | No, while `MIDI_RX_READ_BLOCKING`/`MIDI_RX_HAS_BYTE` remain callable. | Separate from `MIDI_RX_BUFFER`; indexed by `L00B1/L00B2`. |
+| `$2B00-$2B0F` | Bank 4 companion byte buffer. | No. | This is command/control state, not a general RX buffer. |
+
+### Code-space pressure
+
+Every bank currently assembles to an 8 KiB bank image, so code-space
+availability is a bank-selection and trace problem, not just a byte-count
+problem.
+
+| Area | Current assessment | FujiNet guidance |
+|---|---|---|
+| Bank 15 fixed bank | Resident bank-call trampoline, fixed helpers, cartridge start/init, display helpers, and MIDI/POKEY ISRs. | Avoid new code here except tiny proven trampolines. Any change has high boot and interrupt risk. |
+| Bank 12 | Main setup/gameplay orchestration and volatile bank-call patching. | Avoid inline FujiNet code; prefer existing vectors or a narrow wrapper. |
+| Bank 4 | Current live network command/status service and setup command handlers. | Semantically closest transport bank, but hot and stateful. Changes must preserve slot `$13` behavior. |
+| Banks 0/1/13/14 | Gameplay, bot AI, player update, math, drawing, and tables. | Poor transport homes; avoid mixing FujiNet service with gameplay/drawing state. |
+| Banks 2/5 | Stubs plus preserved data/payload/fill regions. | Candidate-only after loader/payload traces. Do not treat fill as free. |
+| Banks 3/7 | Appear to be all `$FF` fill in the current source tree. | Candidate-only. Need cartridge banking, dispatch, boot, and compatibility traces before assigning meaning. |
+| Banks 8-11 | Packed graphics/data emitted verbatim. | Not candidates. |
+
+### Trace checks before claiming free space
+
+Before any RAM or bank region can be promoted from candidate-only to reusable,
+run emulator traces that cover boot, mode selection, each transport setup path,
+live play with and without bots, hold/sync, resync, score/status display, and
+error paths. Candidate RAM needs read/write watchpoints over the full range.
+Candidate bank code space needs bank-select traces, bank-call slot traces, and
+proof that adding or switching into the bank does not disturb the existing
+dispatch table or cartridge layout.
+
+For MIDI-buffer reuse specifically, also trace serial vector restoration,
+`POKMSK`/IRQ state, and `SERIN`/`SEROUT` activity after `MIDI_REMOVE`. Do not
+reuse `$2D00-$2FFF` based only on a non-MIDI setup mode; the fixed helpers and
+interrupt vectors must be proven inactive.

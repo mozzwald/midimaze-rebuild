@@ -68,6 +68,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   final `$3000-$37FF` maze buffer layout, bank 6 built-in maze initializer,
   bank 12 compact/expanded transfer paths, bank 13 placement/occupancy flow,
   and remaining trace target for the slot `$23` caller.
+- [x] Complete Phase G10 RAM pressure and scratch audit. No RAM or code-space
+  range is currently marked free; `docs/fujinet-porting.md` now classifies
+  active ranges, candidate-only bank space, RX/TX buffer reuse risks, and trace
+  checks required before any future FujiNet allocation.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -254,18 +258,18 @@ Verification gate:
 Goal: identify realistic memory space for future FujiNet buffers and code
 hooks.
 
-- [ ] Map unused or low-risk RAM ranges.
-- [ ] Map temporary buffers and their lifetime.
-- [ ] Audit zero-page scratch candidates and current live ranges.
-- [ ] Document existing RX/TX buffers and whether they are reusable.
-- [ ] Identify bank-local versus fixed-bank code space pressure.
-- [ ] Record emulator-trace checks needed before claiming RAM is free.
+- [x] Map unused or low-risk RAM ranges.
+- [x] Map temporary buffers and their lifetime.
+- [x] Audit zero-page scratch candidates and current live ranges.
+- [x] Document existing RX/TX buffers and whether they are reusable.
+- [x] Identify bank-local versus fixed-bank code space pressure.
+- [x] Record emulator-trace checks needed before claiming RAM is free.
 
 Verification gate:
 
-- [ ] `docs/fujinet-porting.md` has a RAM/code-space risk table.
-- [ ] No RAM range is marked free without evidence and a validation method.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `docs/fujinet-porting.md` has a RAM/code-space risk table.
+- [x] No RAM range is marked free without evidence and a validation method.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G11: FujiNet Design Boundary
 
