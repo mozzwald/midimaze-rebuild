@@ -14,7 +14,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 - [x] Main gameplay loop mapped.
 - [x] Transport-specific setup paths mapped.
 - [x] Incoming player data path mapped.
-- [ ] Player state arrays deep-mapped.
+- [x] Player state arrays deep-mapped.
 - [ ] Human versus bot split mapped.
 - [ ] Network command/control bytes mapped.
 - [ ] Maze load path mapped.
@@ -312,3 +312,82 @@ Bank 12 checks `L3EB9` immediately after slot `$13`; if it is nonzero, `L9A2D`
 calls slot `$13` again instead of running slot `$22`. This gives the transport
 service priority over bot/non-human updates while a human-player status ring is
 mid-exchange.
+
+## Player State Arrays Deep Map
+
+Most live player state is stored as parallel per-player arrays. The common
+stride is `$10`, so indexed player-slot access uses `array,X` directly for up
+to 16 players. Position and projectile arrays are interleaved by address, but
+the setup payload sends them in logical player-state order.
+
+### Ownership Summary
+
+| Group | Arrays | Primary writers | Primary readers | Gameplay meaning |
+|---|---|---|---|---|
+| Position and facing | `PLAYER_X_LO/HI`, `PLAYER_Y_LO/HI`, `PLAYER_FACING_ANGLE` | bank 13 slot `$03` movement path around `L842B`; bank 13 placement setup; bank 12 setup/resync receive; bank 0 bot-facing helpers update facing in AI paths | bank 13 movement and collision; bank 1 AI/collision helpers; bank 14 renderer; bank 12 checksum/relay | Authoritative player coordinates and heading. Low bytes are subcell/fractional position; high bytes are maze-cell position. |
+| Movement tuning | `PLAYER_TURN_RATE`, `PLAYER_MOVE_SPEED_FLAG` | bank 12 defaults and `GAMEPLAY_PARAM_RELAY`; setup UI/service paths | bank 13 movement; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Per-player turn amount and movement-speed option used when input bits are applied. |
+| State and hit handling | `PLAYER_STATE`, `PLAYER_STATE_TIMER`, `PLAYER_HIT_FLAG`, `PLAYER_HIT_BY_INDEX` | bank 13 placement and hit/state transitions; bank 12 setup/resync receive | bank 13 update/collision; bank 0 and bank 1 AI checks; bank 14 renderer | Runtime state byte, state countdown, hit flash/event flag, and last hitter/player index. A zero `PLAYER_STATE` skips the visible movement branch but still allows projectile/timer handling. |
+| Firing and projectile | `PLAYER_FIRE_TIMER`, `PROJECTILE_X/Y_LO/HI`, `PROJECTILE_ACTIVE_TIMER`, `PROJECTILE_DX/DY_LO/HI`, `L3A42`, `PLAYER_PROJECTILE_LIFE`, `PLAYER_PROJECTILE_SPEED_FLAG`, `PLAYER_WEAPON_MODE` | bank 13 fire/create/update/hit paths; bank 12 setup defaults, projectile clear, gameplay-parameter relay, and setup/resync receive | bank 13 projectile update/collision; bank 12 checksum/relay; bank 4 setup UI for option bytes | Fire cooldown, projectile coordinates, active/lifetime counter, projectile velocity, projectile angle snapshot, and option bytes controlling projectile/state behavior. |
+| Score and teams | `PLAYER_SCORE_COUNTERS`, `TEAM_SCORE_COUNTERS`, `PLAYER_TEAM_INDEX`, `SETUP_TEAM_OPTION_FLAG` | bank 13 scoring; bank 12 setup/reset/roster relay and command clear paths | bank 13 scoring/status display; bank 4 roster/setup UI; bank 12 checksum/status paths | Per-player score/frags, four team score counters, and team assignment/options used by team-play scoring. |
+| Live input | `PLAYER_INPUT_STATUS`, `$2B00` companion bytes | bank 4 live human exchange; bank 0 bot update; bank 12 byte-level setup/control exchange | bank 4 command parser/status trail; bank 13 slot `$03` byte entry | Packed movement/fire/status byte and optional high-bit companion command byte. This is the bridge from transport/bot input into the shared movement code. |
+
+### Array Table
+
+| Array(s) | Address / stride | Owner bank | Writer routines | Reader routines | Gameplay meaning |
+|---|---:|---|---|---|---|
+| `PLAYER_X_LO`, `PLAYER_X_HI` | `$39B2`, `$39D2` / `$10` | bank 13 | bank 13 placement/update; bank 12 `SLAVE_RECEIVE_SETUP_PAYLOAD`; bank 12 setup/resync relay | bank 13 movement/collision/projectile hit tests; bank 0/bank 1 bot helpers; bank 14 renderer; bank 12 checksum/relay | Player X position, split into low subcell and high maze-cell bytes. |
+| `PLAYER_Y_LO`, `PLAYER_Y_HI` | `$39F2`, `$3A12` / `$10` | bank 13 | bank 13 placement/update; bank 12 `SLAVE_RECEIVE_SETUP_PAYLOAD`; bank 12 setup/resync relay | bank 13 movement/collision/projectile hit tests; bank 0/bank 1 bot helpers; bank 14 renderer; bank 12 checksum/relay | Player Y position, split into low subcell and high maze-cell bytes. |
+| `PLAYER_FACING_ANGLE` | `$3A32` / `$10` | bank 13, with bot steering assist in bank 0 | bank 13 turn/update paths; bank 13 placement; bank 0 bot facing alignment; bank 12 setup/resync receive | bank 13 movement and projectile creation; bank 0/bank 1 AI helpers; bank 14 renderer; bank 12 checksum/relay | Player heading angle. Bank 13 applies human/remote input turns using `PLAYER_TURN_RATE`; bot code can also force headings while preparing AI input. |
+| `PLAYER_TURN_RATE` | `$3B62` / `$10` | bank 12 setup parameters | bank 12 default fill at the bot/default setup path; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 turn handling; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Per-player angular step used by input bits `$04` and `$08`. Default observed value is `$08`. |
+| `PLAYER_MOVE_SPEED_FLAG` | `$3B42` / `$10` | bank 12 setup parameters | bank 12 default fill; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 movement vector setup; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Movement speed option flag. It affects the movement-vector path rather than being part of the setup-state checksum. |
+| `PLAYER_STATE` | `$3A72` / `$10` | bank 13 | bank 13 placement clears/sets it; bank 13 hit/state transitions; bank 12 setup/resync receive | bank 13 movement/collision; bank 0/bank 1 target checks; bank 12 checksum/relay | Per-player live/state byte. Nonzero enters the visible movement branch; zero bypasses movement while projectile and timer work can still run. |
+| `PLAYER_STATE_TIMER` | `$3AA2` / `$10` | bank 13 | bank 13 state countdown and hit paths; bank 12 setup/resync receive | bank 13 state update; bank 12 checksum/relay | Countdown paired with `PLAYER_STATE`; hit paths reload it from gameplay parameters. |
+| `PLAYER_HIT_FLAG` | `$3A92` / `$10` | bank 13 | bank 13 projectile hit path; bank 12 setup/resync receive | bank 14 renderer/status effects; bank 12 checksum/relay | Hit/event flag set when a projectile registers against a player. |
+| `PLAYER_HIT_BY_INDEX` | `$3AD2` / `$10` | bank 13 | bank 13 projectile hit path | collision/status paths still under review | Last player index associated with the hit event. It is not part of the bank 12 setup payload. |
+| `PLAYER_FIRE_TIMER` | `$3AB2` / `$10` | bank 13 | bank 13 fire cooldown decrement/create paths; bank 12 setup/resync receive | bank 13 fire gate; bank 12 checksum/relay | Per-player fire cooldown countdown. Firing copies `PLAYER_FIRE_COOLDOWN` into this timer. |
+| `PLAYER_FIRE_COOLDOWN` | `$3D19` / `$10` | bank 12 setup parameters | bank 12 default fill; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 fire path; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Reload value used after a projectile is fired. Default observed value is `$0A`. |
+| `PLAYER_RELOAD_TIMER` | `$3D09` / `$10` | bank 12 setup parameters | bank 12 default fill; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 hit/state path; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | State timer reload value used when a player is hit. Default observed value is `$64`. |
+| `PLAYER_PROJECTILE_LIFE` | `$3CF9` / `$10` | bank 12 setup parameters | bank 12 default fill; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 state/projectile path; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Duration/value copied into state/projectile logic after specific state transitions. Default observed value is `$32`. |
+| `PLAYER_WEAPON_MODE` | `$3CE9` / `$10` | bank 12 setup parameters | bank 12 default fill; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 fire/state path; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Per-player weapon/mode option. Default observed value is `$02`. |
+| `PLAYER_PROJECTILE_SPEED_FLAG` | `$3B52` / `$10` | bank 12 setup parameters | bank 12 default fill; `GAMEPLAY_PARAM_RELAY`; setup UI paths | bank 13 projectile vector setup; bank 4 setup UI; bank 12 gameplay-parameter checksum/relay | Projectile speed option flag. |
+| `PROJECTILE_X_LO`, `PROJECTILE_X_HI` | `$39C2`, `$39E2` / `$10` | bank 13 | bank 13 fire/create and projectile update; bank 12 projectile clear; bank 12 setup/resync receive | bank 13 projectile movement/collision; bank 12 checksum/relay | Projectile X position, split into low subcell and high maze-cell bytes. |
+| `PROJECTILE_Y_LO`, `PROJECTILE_Y_HI` | `$3A02`, `$3A22` / `$10` | bank 13 | bank 13 fire/create and projectile update; bank 12 projectile clear; bank 12 setup/resync receive | bank 13 projectile movement/collision; bank 12 checksum/relay | Projectile Y position, split into low subcell and high maze-cell bytes. |
+| `PROJECTILE_ACTIVE_TIMER` | `$3A82` / `$10` | bank 13 | bank 13 fire/create, wall-hit, and player-hit paths; bank 12 projectile clear; bank 12 setup/resync receive | bank 13 projectile update; bank 0 AI checks; bank 12 checksum/relay | Projectile active/lifetime counter. Zero means no active projectile for that player slot. |
+| `PROJECTILE_DX_LO`, `PROJECTILE_DX_HI` | `$3B02`, `$3B12` / `$10` | bank 13 | bank 13 projectile vector setup near `L85B0`; bank 12 setup/resync receive | bank 13 projectile movement | Projectile X velocity, split into low and high/sign bytes. These bytes are relayed after the checksum-covered base state. |
+| `PROJECTILE_DY_LO`, `PROJECTILE_DY_HI` | `$3B22`, `$3B32` / `$10` | bank 13 | bank 13 projectile vector setup near `L85B0`; bank 12 setup/resync receive | bank 13 projectile movement | Projectile Y velocity, split into low and high/sign bytes. |
+| `L3A42` | `$3A42` / `$10` | bank 13 | bank 13 fire/create stores the projectile angle snapshot | bank 13 projectile vector/update paths | Generated label retained. It appears to hold projectile angle/facing at fire time, but needs more trace evidence before promotion. |
+| `PLAYER_SCORE_COUNTERS` | `$3AC2` / `$10` | bank 13 scoring | bank 13 scoring; bank 12 setup/reset/command clear; bank 12 setup/resync receive | bank 13 score display/status; bank 12 checksum/relay; bank 4 roster/status UI | Per-player score/frags counter. Score 10 is the observed win threshold in the bank 13 scoring path. |
+| `TEAM_SCORE_COUNTERS` | `$3D39` / 4 bytes | bank 13 scoring | bank 13 team-play scoring; bank 12 setup/reset/command clear | bank 13 team score display; bank 12 setup/status paths | Four team score counters used when team play is enabled. |
+| `PLAYER_TEAM_INDEX` | `$3AF2` / `$10` | bank 12 setup/roster | bank 12 setup/team assignment and relay | bank 13 team-play scoring; bank 0 target exclusion; bank 4 roster/status UI; bank 12 gameplay-parameter checksum | Per-player team number or assignment metadata. |
+| `MAZE_CELL_PLAYER_NEXT` | `$3A52` / `$10` | fixed maze-cell helpers | placement and maze occupancy helper paths | maze occupancy/collision helper paths | Per-player next pointer for maze-cell occupancy lists. It is not transmitted in the setup payload. |
+| `PLAYER_INPUT_STATUS` | `$3D29` / `$10` | bank 4 live exchange, bank 0 bot update | bank 4 local/remote input exchange; bank 0 non-human update; bank 12 setup/control byte paths | bank 4 command/status parser; bank 13 slot `$03` byte entry | Packed movement/fire/status byte consumed by bank 13 after being copied to `L00C7`. |
+
+### Setup And Checksum Coverage
+
+Bank 12 `MASTER_SEND_SETUP_PAYLOAD` sends, and
+`SLAVE_RECEIVE_SETUP_PAYLOAD` receives, the following per-player state after
+the seed bytes: player position, facing, state, hit flag, state timer, fire
+timer, score, projectile position, projectile active timer, and projectile
+velocity. The order matches the payload-order table in `docs/symbols.md`.
+
+Bank 12 `L99D6` computes the setup-state checksum over the seed bytes and the
+position/state/projectile base arrays through `PROJECTILE_ACTIVE_TIMER`; it
+does not include projectile velocity bytes. Bank 12 `L9958` separately checks
+the gameplay parameter block: `PLAYER_TEAM_INDEX`, `SETUP_TEAM_OPTION_FLAG`,
+`PLAYER_FIRE_COOLDOWN`, `PLAYER_RELOAD_TIMER`, `PLAYER_PROJECTILE_LIFE`,
+`PLAYER_WEAPON_MODE`, `PLAYER_MOVE_SPEED_FLAG`,
+`PLAYER_PROJECTILE_SPEED_FLAG`, and `PLAYER_TURN_RATE`.
+
+### Roster And Slot Metadata
+
+No separate free-form player-name buffer is proven yet. The visible roster
+labels are generated from `STATUS_PLAYER_LABEL_TEMPLATE` into `L3DFC` and then
+sent or displayed by bank 12 and bank 4 roster/status paths. `PLAYER_TEAM_INDEX`
+is the clearest per-slot metadata array. `L3DB7` appears to be a score display
+cache, and `L3DC7` is used as a setup/reset score mirror, but both remain
+generated labels until their lifetimes are mapped more tightly.
+
+`L3A42`, `L3AE2`, `L396C`, `L396D`, and `L3970` also remain generated. The
+first two are associated with projectile/hit state, while the latter three are
+setup/control scalars visible in bank 13 placement and game-over style paths.
+They are documented here as trace targets rather than promoted names.

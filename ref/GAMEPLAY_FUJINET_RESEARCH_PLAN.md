@@ -47,6 +47,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   owns the live status exchange, writes human `PLAYER_INPUT_STATUS` bytes,
   stores companion command bytes in `$2B00`, and bank 13 consumes status through
   the slot `$03` byte entry copy into `L00C7`.
+- [x] Complete Phase G5 player state arrays deep map. `docs/gameplay.md` now
+  records per-array addresses, stride, owner/writer banks, reader banks,
+  gameplay meaning, checksum coverage, and roster/status metadata trace
+  targets.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -136,23 +140,23 @@ Verification gate:
 
 Goal: document each gameplay state array beyond setup payload order.
 
-- [ ] Map position arrays: `PLAYER_X_LO/HI`, `PLAYER_Y_LO/HI`.
-- [ ] Map facing/turning arrays: `PLAYER_FACING_ANGLE`, `PLAYER_TURN_RATE`.
-- [ ] Map alive/dead/state arrays: `PLAYER_STATE`,
+- [x] Map position arrays: `PLAYER_X_LO/HI`, `PLAYER_Y_LO/HI`.
+- [x] Map facing/turning arrays: `PLAYER_FACING_ANGLE`, `PLAYER_TURN_RATE`.
+- [x] Map alive/dead/state arrays: `PLAYER_STATE`,
   `PLAYER_STATE_TIMER`, `PLAYER_HIT_FLAG`, `PLAYER_HIT_BY_INDEX`.
-- [ ] Map projectile arrays: projectile position, velocity, active timer, fire
+- [x] Map projectile arrays: projectile position, velocity, active timer, fire
   timer, projectile life/speed flags, weapon mode.
-- [ ] Map score/kills arrays: `PLAYER_SCORE_COUNTERS`,
+- [x] Map score/kills arrays: `PLAYER_SCORE_COUNTERS`,
   `TEAM_SCORE_COUNTERS`.
-- [ ] Identify player name/slot metadata and any roster/status tables.
-- [ ] Document which bank owns writes and which bank owns reads for each array.
+- [x] Identify player name/slot metadata and any roster/status tables.
+- [x] Document which bank owns writes and which bank owns reads for each array.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has an array table with address, stride, owner bank,
+- [x] `docs/gameplay.md` has an array table with address, stride, owner bank,
   writer routines, reader routines, and gameplay meaning.
-- [ ] Stable names promoted only where evidence is cross-bank strong.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] Stable names promoted only where evidence is cross-bank strong.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G6: Human Versus Bot Split
 
