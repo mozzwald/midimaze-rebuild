@@ -16,6 +16,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 - [x] Incoming player data path mapped.
 - [x] Player state arrays deep-mapped.
 - [x] Human versus bot split mapped.
+- [x] Gameplay bank-call extension points mapped.
 - [ ] Network command/control bytes mapped.
 - [ ] Maze load path mapped.
 
@@ -467,3 +468,45 @@ The important FujiNet implication is that network transport should produce
 valid human-slot status bytes only. Bot scheduling is local gameplay state
 derived from shared setup counts and should stay behind the
 `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1` boundary.
+
+## Gameplay Bank-Call Map
+
+The game uses the fixed-bank `BANK_CALL_INDEXED` trampoline at `$AF1D` for
+cross-bank service calls. `X` is the slot index. The target address and bank are
+read from `BANK_CALL_ADDR_LO` (`$3D3E`), `BANK_CALL_ADDR_HI` (`$3D66`), and
+`BANK_CALL_BANK_ID` (`$3D8E`). The fixed bank initializes 37 slots from the
+packed table at bank 15 `LB03F`; bank 12 then repoints selected volatile slots
+during setup and gameplay.
+
+### Gameplay-Critical Calls
+
+| Slot | Normal target | Gameplay role | Extension risk |
+|---:|---|---|---|
+| `$13` | bank 4 `BANK4_NET_COMMAND_SERVICE_ENTRY` | Main transport/command service. Bank 12 calls it in `L9A2D`, pre-live waits, resync waits, and hold/sync loops. | Best future FujiNet service hook, but hot and volatile. It must preserve `L3EB9`, `NET_ERROR_CODE`, `PENDING_NET_COMMAND`, `OUTGOING_NET_COMMAND`, and `PLAYER_INPUT_STATUS`. |
+| `$22` | bank 0 `BANK0_GAMEPLAY_UPDATE_ENTRY` | Bot/non-human gameplay update after slot `$13` has completed the current human exchange. | Do not use as a transport hook; it owns local bot scheduling. |
+| `$0D` | bank 13 `BANK13_ROSTER_STATUS_SERVICE_ENTRY` | High-frequency status/roster/display polling in setup, pre-live, hold/sync, and live-adjacent waits. | Avoid transport work here. It is display/status service, not byte transport. |
+| `$03` | bank 13 `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | Registered player/maze/projectile update entry. It consumes `PLAYER_INPUT_STATUS` for the selected slot when called. | No active bank 12 caller is proven yet; keep as a trace target, not an insertion point. |
+| `$11` | volatile | Patched by bank 12 to current-bank setup/gameplay loop entries. | Not reusable. It is a bank-local continuation slot and depends on `BANK_CALL_BANK_ID[$11] = L008C`. |
+| `$1B` | bank 4 `BANK4_NET_STATE_RESET_ENTRY` or `BANK_RETURN` | Reset/prepare bank 4 network state before setup/gameplay loops. | Volatile. Future hooks must tolerate it being patched to `BANK_RETURN` during setup. |
+| `$24` | bank 4 `BANK4_SLOT24_SERVICE_ENTRY` | Hold/sync helper path used while slot `$13` can be redirected. | Not a general hook; tied to hold/sync recovery. |
+
+### Bank 12 Gameplay Patching
+
+Bank 12 owns the gameplay bank-call shape:
+
+| Patch site | Slot changes | Purpose |
+|---|---|---|
+| `L863D` | `$11 -> current bank $9007`; `$1B -> BANK_RETURN`; `$13 -> BANK_RETURN` | Shared setup convergence. It disables the bank 4 network slots until the setup path is ready to restore them. |
+| `L93F8` | `$11 -> current bank $9A15`; `$1B -> bank 4 $8018`; `$13 -> bank 4 $8000` | Main setup/gameplay command-loop entry. Restores bank 4 network service and reset slots. |
+| `L9504` | same as `L93F8` | Alternate command-loop entry after `LB224`. |
+| `L95D0` / `L9613` | `$13 -> BANK_RETURN`, then `$13 -> bank 4 $8000` | Hold/sync master path temporarily suppresses normal slot `$13` service while callback-vector helpers run. |
+
+The live service slice at `L9A2D` calls slot `$13`, checks error and pending
+command state, spins while `L3EB9` is nonzero, and only then calls slot `$22`.
+This order is the core transport/gameplay contract: complete or advance the
+human-byte exchange before local bot updates run.
+
+No currently documented slot is safe to repurpose as unused. Some initial table
+entries have no proven active caller yet, but their targets are still part of
+the cartridge's initialized bank-call table and may be reachable through mixed
+byte-form paths or future trace findings.

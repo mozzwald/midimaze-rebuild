@@ -56,6 +56,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1`; bank 1 fills
   `PLAYER_BOT_TYPE`, bank 4 exchanges only human input/status, and bank 0
   updates only bot slots.
+- [x] Complete Phase G7 bank-call system for gameplay extension. The docs now
+  identify the fixed dispatch tables, volatile bank 12 patch sites, critical
+  gameplay slots, lack of proven free slots, and the preferred FujiNet pattern:
+  transport vectors first, slot `$13` wrapper only with compatibility.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -187,20 +191,20 @@ Verification gate:
 Goal: document bank-call mechanics specifically for future gameplay transport
 changes.
 
-- [ ] Document dispatch table locations and initialization source.
-- [ ] Document how bank 12 calls bank 4, bank 13, and bank 0 during gameplay.
-- [ ] Document volatile slot usage and patch sites.
-- [ ] Identify bank-call slots that are gameplay-critical and must not be
+- [x] Document dispatch table locations and initialization source.
+- [x] Document how bank 12 calls bank 4, bank 13, and bank 0 during gameplay.
+- [x] Document volatile slot usage and patch sites.
+- [x] Identify bank-call slots that are gameplay-critical and must not be
   repurposed.
-- [ ] Identify any unused or safely redirectable slots only if proven.
-- [ ] Define a safe future pattern for FujiNet-specific bank calls without
+- [x] Identify any unused or safely redirectable slots only if proven.
+- [x] Define a safe future pattern for FujiNet-specific bank calls without
   breaking current bank layout.
 
 Verification gate:
 
-- [ ] `docs/fujinet-porting.md` has a bank-call extension strategy with risks.
-- [ ] `docs/symbols.md` is updated if new stable slot names are promoted.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `docs/fujinet-porting.md` has a bank-call extension strategy with risks.
+- [x] `docs/symbols.md` is updated if new stable slot names are promoted.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G8: Network Commands And Control Bytes
 

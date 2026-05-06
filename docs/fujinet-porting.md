@@ -13,7 +13,7 @@ gameplay path is documented with exact bank/routine/slot references.
 - [x] Transport setup analogue selected.
 - [x] Incoming byte semantics documented.
 - [x] Human/remote/bot boundary documented.
-- [ ] Bank-call extension strategy documented.
+- [x] Bank-call extension strategy documented.
 - [ ] Command semantics documented.
 - [ ] RAM/code-space risk table completed.
 - [ ] Implementation boundary defined.
@@ -106,3 +106,41 @@ The shared setup/resync path must still distribute the bot counts
 `BOT_COUNT_NASTY`) because those counts determine `TOTAL_PLAYER_COUNT` and
 `PLAYER_BOT_TYPE`. Per-frame FujiNet transport should stop at
 `HUMAN_PLAYER_COUNT`, matching bank 4's existing exchange loop.
+
+## Bank-Call Extension Strategy
+
+The bank-call table is not a pool of free hooks. The fixed bank initializes 37
+entries from bank 15 `LB03F` into `BANK_CALL_ADDR_LO`, `BANK_CALL_ADDR_HI`, and
+`BANK_CALL_BANK_ID`, and bank 12 repatches selected slots at runtime. Future
+FujiNet work should treat slot behavior as part of the protocol, not just as
+an address lookup.
+
+Recommended future pattern:
+
+1. Keep bank 12 orchestration intact. Preserve the order in `L9A2D`: slot
+   `$13`, command/error checks, `L3EB9` spin, then slot `$22`.
+2. Add FujiNet behind the same byte-service contract used by bank 4 slot `$13`
+   and/or the `NET_CALL_VECTOR_0..6` family.
+3. If slot `$13` must be wrapped, restore all volatile slot patch behavior:
+   setup can point `$13` at `BANK_RETURN`, gameplay restores it to bank 4
+   `$8000`, and hold/sync can suppress it temporarily.
+4. Do not repurpose slot `$22`; it is the bot update slot.
+5. Do not claim an initially uncalled slot as free until emulator traces prove
+   it is unreachable in setup, gameplay, pause/hold, score display, and maze
+   flows.
+
+Risk table:
+
+| Candidate | Use for FujiNet? | Reason |
+|---|---|---|
+| `NET_CALL_VECTOR_0..6` replacement | Preferred first design target | Existing setup and live code already call these for read/write/ready/open/close/helper operations. It avoids changing the bank-call dispatch table shape. |
+| Slot `$13` wrapper | Plausible but higher risk | Correct semantic location for live RX/TX and command parsing, but it is hot and volatile. Any wrapper must preserve bank 4 state-machine semantics exactly. |
+| New bank-call slot | Only after a trace-backed free-slot audit | There is no proven free slot yet. Adding one also costs RAM table entries and bank-local code space. |
+| Bank 12 inline hook | Use only for tiny glue | Bank 12 is orchestration-heavy and already patches volatile slots. Inline hooks risk missing non-`L9A2D` wait-loop calls to slot `$13`. |
+| Slot `$22` hook | No | This would mix transport with bot scheduling and break the human/bot boundary. |
+| Slot `$03` hook | No for transport | This is a player update consumer path, not the transport producer. Its active caller still needs trace proof. |
+
+The safest FujiNet direction is a transport-vector implementation plus a thin
+slot `$13` compatibility path only if the original bank 4 state machine cannot
+be reused directly. Any later implementation phase should include a trace plan
+for slot `$13` patching and `L3EB9` state transitions before changing code.

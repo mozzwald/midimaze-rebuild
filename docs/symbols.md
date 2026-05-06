@@ -100,6 +100,13 @@ Known volatile slot patches:
   and `bank12:L9504` restore it to bank 4 `$8018`
   (`BANK4_NET_STATE_RESET_ENTRY`) before the setup/gameplay loop calls it.
 
+G7 extension note:
+
+- No bank-call slot is currently documented as safe to repurpose. Slots with no
+  proven active caller remain initialized table entries, not free space. Future
+  FujiNet work should prefer the transport callback vector family or a tightly
+  compatible slot `$13` wrapper over adding/reusing a bank-call slot.
+
 Several targets remain intentionally byte-form in source because adjacent
 regions mix executable landing pads with data. Their labels document confirmed
 bank-call entries without converting uncertain bytes into instructions.
