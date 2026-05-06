@@ -72,6 +72,10 @@ comments, symbols, tables, and trace notes before behavior changes.
   range is currently marked free; `docs/fujinet-porting.md` now classifies
   active ranges, candidate-only bank space, RX/TX buffer reuse risks, and trace
   checks required before any future FujiNet allocation.
+- [x] Complete Phase G11 FujiNet design boundary. The docs now define the
+  minimal callback-vector transport contract, exact setup/live hook boundaries,
+  candidate bank preconditions, byte-stream compatibility rules, and required
+  emulator/hardware tests before code changes.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -276,20 +280,20 @@ Verification gate:
 Goal: convert the gameplay documentation into a concrete future implementation
 boundary, without implementing it yet.
 
-- [ ] Define the minimal FujiNet transport interface the original gameplay can
+- [x] Define the minimal FujiNet transport interface the original gameplay can
   call.
-- [ ] Identify which existing transport callbacks can be adapted.
-- [ ] Identify which bank should contain FujiNet-specific code, based on code
+- [x] Identify which existing transport callbacks can be adapted.
+- [x] Identify which bank should contain FujiNet-specific code, based on code
   space and call frequency.
-- [ ] Identify required packet format compatibility or translation from the
+- [x] Identify required packet format compatibility or translation from the
   original MIDI ring bytes.
-- [ ] List emulator or hardware tests needed before code changes begin.
+- [x] List emulator or hardware tests needed before code changes begin.
 
 Verification gate:
 
-- [ ] `docs/fujinet-porting.md` contains an implementation-ready design outline.
-- [ ] Any proposed code hooks reference exact bank/routine/slot locations.
-- [ ] No behavior change is committed as part of this research phase.
+- [x] `docs/fujinet-porting.md` contains an implementation-ready design outline.
+- [x] Any proposed code hooks reference exact bank/routine/slot locations.
+- [x] No behavior change is committed as part of this research phase.
 
 ## How To Use This Plan
 

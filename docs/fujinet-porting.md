@@ -16,7 +16,7 @@ gameplay path is documented with exact bank/routine/slot references.
 - [x] Bank-call extension strategy documented.
 - [x] Command semantics documented.
 - [x] RAM/code-space risk table completed.
-- [ ] Implementation boundary defined.
+- [x] Implementation boundary defined.
 
 ## Gameplay-Loop Insertion Points
 
@@ -258,3 +258,102 @@ For MIDI-buffer reuse specifically, also trace serial vector restoration,
 `POKMSK`/IRQ state, and `SERIN`/`SEROUT` activity after `MIDI_REMOVE`. Do not
 reuse `$2D00-$2FFF` based only on a non-MIDI setup mode; the fixed helpers and
 interrupt vectors must be proven inactive.
+
+## FujiNet Implementation Boundary
+
+The first FujiNet implementation should be a transport substitution, not a
+gameplay rewrite. The game-facing contract should remain the existing callback
+vector family plus the bank 4 slot `$13` live exchange state machine.
+
+### Minimal game-facing interface
+
+Install a complete FujiNet callback family into `NET_VECTOR_0_LO/HI` through
+`NET_VECTOR_6_LO/HI` (`$3ED3-$3EE0`) before joining the shared setup handshake
+at bank 12 `L863D`.
+
+| Callback | Required FujiNet behavior | Must preserve |
+|---:|---|---|
+| `NET_CALL_VECTOR_0` | Read one ordered byte from the FujiNet receive stream. | Return the byte in `A`; preserve existing timeout/error behavior through `NET_ERROR_CODE`. |
+| `NET_CALL_VECTOR_1` | Write one ordered byte to the FujiNet transmit stream. | Byte order must match the original stream exactly, including high-bit first byte plus companion byte pairs. |
+| `NET_CALL_VECTOR_2` | Report whether a byte is ready without blocking. | Must be cheap enough for bank 4 `L8188`/`L81E4` and fixed wait helpers. |
+| `NET_CALL_VECTOR_3` | Open/init/reset the FujiNet session before shared setup work. | Called by bank 12 `L863D` and modem-style paths; must leave shared setup state usable. |
+| `NET_CALL_VECTOR_4` | Close/remove the FujiNet session. | Must not leave IRQ/vector state that conflicts with original MIDI or CIO paths. |
+| `NET_CALL_VECTOR_5` | Hold/sync helper analogue. | Must preserve bank 12 hold/sync flows that call this before temporarily suppressing slot `$13`. |
+| `NET_CALL_VECTOR_6` | Resume/reopen companion helper. | Must preserve hold/sync recovery and command-loop reentry expectations. |
+
+Do not bypass `PLAYER_INPUT_STATUS`, `PENDING_NET_COMMAND`, or
+`OUTGOING_NET_COMMAND`. Bank 4 should still own local status packing, remote
+status unpacking, companion-byte parsing, and the `L3EB9` exchange state unless
+a later phase deliberately replaces that whole state machine.
+
+### Concrete hook points
+
+| Hook | First implementation stance | Reason |
+|---|---|---|
+| New setup entry in bank 12 near existing setup entries | Add only enough code to select/install FujiNet vectors and enter `L863D`. | Matches `SETUP_MIDIMATE_ENTRY` shape and keeps shared setup/checksum/maze exchange code intact. |
+| `NET_VECTOR_0_LO/HI` ... `NET_VECTOR_6_LO/HI` | Primary game-facing API. | Existing setup, wait, live exchange, hold/sync, and resync code already use these wrappers. |
+| Bank 4 slot `$13` at `BANK4_NET_COMMAND_SERVICE_ENTRY` | Reuse unchanged for the first implementation. | It already implements human-slot exchange, command latching, and `PLAYER_INPUT_STATUS` writes. |
+| Bank 12 `L9A2D` live service slice | No inline FujiNet code in the first implementation. | Preserves slot `$13`, command dispatch, `L3EB9` spin, and slot `$22` ordering. |
+| Slot `$22` bank 0 update | No FujiNet hook. | This is bot/non-human gameplay update, not transport. |
+| Slot `$03` bank 13 update | No FujiNet hook. | This consumes player status; transport should feed status before this point. |
+
+### Code placement boundary
+
+Bulk FujiNet code should live in a bank that is proven unused or safely
+reassignable by emulator traces. Based on the current audit, banks 3 or 7 are
+the preferred candidates because they appear to be all `$FF` fill in the source
+tree, but they are not yet free. The next implementation plan must first prove:
+
+- The cartridge banking layout can switch to the candidate bank without
+  disturbing boot, bank-call initialization, or existing bank order.
+- No setup, live, hold/sync, score, maze, or display path depends on the
+  candidate bank containing only `$FF`.
+- A small trampoline from the current setup/vector path can reach the candidate
+  bank and return without corrupting `L0087`, `L0088`, `L008C`, the stack, or
+  bank-call tables.
+
+If banks 3/7 cannot be used, do not move FujiNet into bank 12, bank 15, or slot
+`$22` by default. Re-open the code-space audit and choose a new bank with trace
+evidence.
+
+### Stream compatibility boundary
+
+The first FujiNet transport should carry the original ordered byte stream over
+FujiNet rather than inventing game-visible packets. Packet framing can exist
+inside the FujiNet driver, but the bytes delivered to `NET_CALL_VECTOR_0` and
+accepted by `NET_CALL_VECTOR_1` should match the original protocol:
+
+- Setup marker `$83` remains a direct setup byte.
+- Setup payload order remains the existing bank 12 master/slave order,
+  including maze bytes, seeds, bot counts, player parameters, and checksums.
+- Live human status remains one byte per human slot, with high-bit first bytes
+  followed by a companion byte.
+- Negative companion commands `$80`, `$81`, `$82`, `$84`, and `$86` preserve
+  their current `OUTGOING_NET_COMMAND`/`PENDING_NET_COMMAND` lifecycle.
+- Bot slots remain local derived state and are not sent per frame.
+- FujiNet transport may add its own outer framing, retries, or addressing only
+  if that framing is invisible to bank 4 and bank 12 byte consumers.
+
+### Required tests before code changes
+
+Before implementing FujiNet code, create trace checkpoints using `atari800-ai`
+or equivalent debugger support:
+
+| Test | Required observation |
+|---|---|
+| Boot/menu baseline | Existing ROM reaches menu and all current setup entries still branch through their documented labels. |
+| MIDI-MATE baseline | `SETUP_MIDIMATE_ENTRY` installs vectors, reaches `L863D`, and calls slot `$13` in pre-live/live waits. |
+| Candidate bank trace | Banks 3/7 or another candidate are never required by existing setup/gameplay paths before being repurposed. |
+| Callback-vector trace | Each `NET_CALL_VECTOR_0..6` call site used by setup, live exchange, hold/sync, and resync is logged with register and `NET_ERROR_CODE` effects. |
+| Slot `$13` trace | Bank 12 calls slot `$13` at `L9A2D` and wait loops; `L3EB9` clears before slot `$22` runs. |
+| Live two-node byte stream | Two emulated instances exchange ordered setup bytes, then live `PLAYER_INPUT_STATUS` bytes for human slots only. |
+| Command tests | `$80`, `$81`, `$82`, `$84`, `$86`, `$83`, `$08`, `$0D`, and `$FF` companion behavior matches the original parser. |
+| Maze agreement | After setup/resync, `$3000-$37FF` and setup scalars match across peers where the original protocol expects them to match. |
+| Bot boundary | Bot slots begin at `HUMAN_PLAYER_COUNT`; no live FujiNet traffic is generated for bot slots. |
+| Error/timeout | `NET_ERROR_CODE`, especially `$C7`, produces the same visible setup/live failure handling as the current transports. |
+
+This boundary leaves gameplay, movement, maze, bot AI, drawing, and scoring out
+of the first FujiNet implementation. The first code phase should prove a
+FujiNet byte transport can satisfy the original vector contract; only after
+that should packet redesign, new lobbies, or multi-machine behavior changes be
+planned.
