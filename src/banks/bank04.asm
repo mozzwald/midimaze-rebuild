@@ -11,7 +11,13 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
+;   $8000-$8029  Bank-call slot $13-$1F/$24 packed JMP stubs.
+;   $802A-$821D  Network/MIDI command intake and callback dispatch.
+;   $821E-$82CC  Player input/status packing and command byte tables.
+;   $82CD-$8F4A  Gameplay command handlers and setup/status helpers.
+;   $8F4B-$977A  Slot-targeted setup/resync command handlers.
+;   $977B-$9D2E  Slot $24 and related setup/status exchange paths.
+;   $9D2F-$9FFF  Slot $14 service and trailing tables/data.
 
 L0080	= $0080
 L0081	= $0081

@@ -11,12 +11,12 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$8009  Entry stub into fixed-bank helper routines.
+;   $8000-$8009  Bank-call slot $21 entry stub into fixed-bank helper routines.
 ;   $800A-$9FFF  Data/fill region preserved as emitted bytes.
 
 LAF41	= $AF41
 	org $8000
-START1	LDY	#$00
+BANK2_SETUP_FINALIZE_ENTRY	LDY	#$00	; bank-call slot $21
 	LDX	#$80
 	LDA	#$01
 	JSR	LAF41

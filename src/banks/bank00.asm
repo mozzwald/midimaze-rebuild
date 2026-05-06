@@ -11,7 +11,17 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
+;   $8000-$8003  Bank-call slot $22 entry stub, called from bank 12 gameplay loop.
+;   $8004-$8025  Preserved console-key wait/debounce helper; no active caller proven yet.
+;   $8026-$82AD  Per-player gameplay state dispatcher and local control update.
+;   $82AE-$82E5  Mixed preserved bytes plus MIDI_TX_BUFFER save/restore helper at $82BA.
+;   $82E6-$8975  Facing/input resolution and movement-choice helpers.
+;   $8976-$8995  Preserved byte run; nearby disassembly is not yet proven executable.
+;   $8996-$8C52  Per-player transient control state and movement-direction gating.
+;   $8C53-$8C6A  Preserved byte run before a random-bit helper.
+;   $8C6B-$8F6B  Target selection, line-of-sight checks, and fire/facing control.
+;   $8F6C-$9329  Relative-angle/math helpers used by target selection.
+;   $932A-$9FFF  Angle lookup table and trailing fill bytes.
 
 L0080	= $0080
 L0083	= $0083
@@ -96,8 +106,10 @@ LAF41	= $AF41
 LBE06	= $BE06
 LBE0C	= $BE0C
 	org $8000
-START1	JMP	L8026
+BANK0_GAMEPLAY_UPDATE_ENTRY	JMP	L8026	; bank-call slot $22
 	.byte	$48 ; 'H'
+; Preserved console-key wait/debounce helper. No active caller has been proven;
+; keep adjacent bytes/layout untouched.
 L8004	TXA
 	PHA
 L8006	LDA	CONSOL
@@ -120,6 +132,9 @@ L8019	LDA	CONSOL
 	TAX
 	PLA
 	RTS
+; Main bank 0 gameplay update. Bank 12 calls this once per gameplay loop after
+; servicing bank 4 network state. It walks player slots from HUMAN_PLAYER_COUNT
+; through TOTAL_PLAYER_COUNT and dispatches on L3F16,X.
 L8026	LDX	HUMAN_PLAYER_COUNT
 	TXA
 	STA	L40CB
@@ -402,6 +417,8 @@ L82DC	LDA	L0600,X
 	INX
 	BNE	L82DC
 	RTS
+; Resolve facing angle and local obstacle/input flags into the live
+; PLAYER_INPUT_STATUS byte for the current player.
 L82E6	LDX	L40CB
 	LDA	PLAYER_FACING_ANGLE,X
 	BEQ	L830E
@@ -1116,6 +1133,8 @@ L8996	LDA	#$FF
 	STA	L405A,X
 	STA	L407A,X
 	RTS
+; Replay pending transient input/status timers for the current player. Returns
+; L40CA nonzero when a timer-fed status byte was emitted.
 L89A8	LDX	L40CB
 	LDA	L3F76,X
 	BNE	L89E6
@@ -1423,6 +1442,8 @@ L8C6B	LDA	#$32
 	AND	#$01
 	STA	L40CA
 	RTS
+; Choose or maintain the current target player, then adjust firing/facing state.
+; Team play builds an exclusion list from PLAYER_TEAM_INDEX before distance checks.
 L8C76	LDX	L40CB
 	LDA	PLAYER_HIT_FLAG,X
 	BEQ	L8C95
@@ -1717,6 +1738,7 @@ L8F64	SBX	#$40	; (undocumented opcode)
 	LDA	#$00
 	STA	L3F76,X
 L8F6B	RTS
+; Compute relative angle from current player to candidate target in L40CF.
 L8F6C	LDX	L40CB
 	LDY	L40CF
 	LDA	PLAYER_STATE,Y
@@ -2034,6 +2056,7 @@ L90C1	.byte	$00 ; Screen code for ' '
 	.byte	$04 ; Screen code for '$'
 	.byte	$06 ; Screen code for '&'
 	.byte	$06 ; Screen code for '&'
+; Fixed-point multiply/divide helpers used by the relative-angle code.
 L90C9	LDA	#$00
 	STA	L009E
 	STA	L009F
@@ -2281,6 +2304,7 @@ L922D	CLC
 	.byte	$4C ; 'L'
 	.byte	$90
 	.byte	$91
+; Convert signed X/Y deltas in L40E2-L40E5 into an angle/status byte.
 L9277	LDY	#$03
 	LDA	L40E3
 	BPL	L9295

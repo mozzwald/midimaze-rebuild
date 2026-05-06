@@ -32,6 +32,11 @@ items only after `make compare` still reports an exact ROM match.
 - [x] Name confirmed network/setup RAM addresses in `include/game_ram.inc`.
 - [x] Propagate confirmed shared names through bank sources.
 - [x] Document initial `BANK_CALL_INDEXED` slot table in `docs/symbols.md`.
+- [x] Began Phase 6 bank 00 pass: added a local range map and named the slot
+  `$22` entry as `BANK0_GAMEPLAY_UPDATE_ENTRY`.
+- [x] Completed Phase 6 bank-local maps and proven bank-call entry names. Data
+  and fill banks remain intentionally byte/data-preserving; generated labels
+  remain where they are local, ambiguous, or not safe to promote yet.
 
 ## Phase 1: Bank-Call Entry Points
 
@@ -164,37 +169,37 @@ Goal: finish routine-level readability without inventing behavior.
 
 Work bank by bank. For each bank:
 
-- [ ] Add a bank-local map comment listing code/data ranges.
-- [ ] Name every proven routine entry point.
-- [ ] Add one-line comments for remaining generated labels that are referenced
+- [x] Add a bank-local map comment listing code/data ranges.
+- [x] Name every proven routine entry point.
+- [x] Add one-line comments for remaining generated labels that are referenced
   but not renamed.
-- [ ] Mark likely data blocks and tables.
-- [ ] Update cross-bank docs if any routine is called through a bank-call slot
+- [x] Mark likely data blocks and tables.
+- [x] Update cross-bank docs if any routine is called through a bank-call slot
   or fixed-bank helper.
 
 Bank checklist:
 
-- [ ] Bank 00 documented and named.
-- [ ] Bank 01 documented and named.
-- [ ] Bank 02 documented and named.
-- [ ] Bank 03 documented as fill/data.
-- [ ] Bank 04 documented and named.
-- [ ] Bank 05 documented and named.
-- [ ] Bank 06 documented and named.
-- [ ] Bank 07 documented as fill/data.
-- [ ] Bank 08 documented as packed data.
-- [ ] Bank 09 documented as packed data.
-- [ ] Bank 10 documented as packed data.
-- [ ] Bank 11 documented as packed data.
-- [ ] Bank 12 documented and named.
-- [ ] Bank 13 documented and named.
-- [ ] Bank 14 documented and named.
-- [ ] Bank 15 documented and named.
+- [x] Bank 00 documented and named.
+- [x] Bank 01 documented and named.
+- [x] Bank 02 documented and named.
+- [x] Bank 03 documented as fill/data.
+- [x] Bank 04 documented and named.
+- [x] Bank 05 documented and named.
+- [x] Bank 06 documented and named.
+- [x] Bank 07 documented as fill/data.
+- [x] Bank 08 documented as packed data.
+- [x] Bank 09 documented as packed data.
+- [x] Bank 10 documented as packed data.
+- [x] Bank 11 documented as packed data.
+- [x] Bank 12 documented and named.
+- [x] Bank 13 documented and named.
+- [x] Bank 14 documented and named.
+- [x] Bank 15 documented and named.
 
 Verification gate:
 
-- [ ] `make compare` exact after every bank.
-- [ ] Every bank has a clear top-level map and no unexplained high-traffic
+- [x] `make compare` exact after every bank.
+- [x] Every bank has a clear top-level map and no unexplained high-traffic
   routine labels.
 
 ## Phase 7: Final Human-Readable Pass

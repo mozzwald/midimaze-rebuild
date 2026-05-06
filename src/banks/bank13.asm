@@ -11,7 +11,12 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
+;   $8000-$8184  Slot $02 player placement/setup entry.
+;   $8185-$88FF  Slot $03 player maze/projectile update service.
+;   $8900-$8DFF  Setup placement dispatch and roster/status helpers.
+;   $8E00-$91F5  Slot $0A-$10 status/template/display services.
+;   $91F6-$98FF  Additional status/display update code and embedded tables.
+;   $9900-$9FFF  Slot $0B status clear path and trailing tables/data.
 
 L0080	= $0080
 L0081	= $0081

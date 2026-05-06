@@ -11,7 +11,9 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  RAM setup and data/code used by fixed-bank entry points.
+;   $8000-$806A  Bank-call slot $23 maze-data initializer.
+;   $806B-$8082  Maze-size row/count lookup selected by incoming Y.
+;   $8083-$9FFF  Maze data pointer table and packed maze data copied into $3000-$37FF.
 
 L0080	= $0080
 L00AD	= $00AD
@@ -27,7 +29,7 @@ L3500	= $3500
 L3600	= $3600
 L3700	= $3700
 	org $8000
-START1	STY	L0080
+BANK6_MAZE_DATA_INIT_ENTRY	STY	L0080	; bank-call slot $23
 	LDX	L0080
 	LDA	L806B,X
 	STA	MAZE_SIZE_INDEX

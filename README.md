@@ -10,6 +10,7 @@ original ROM.
 - The ROM builds with MADS.
 - `build/midimaze.rom` compares byte-exact against
   `ref/MIDI Maze-Original.rom`.
+- The rebuilt ROM has been user-tested in an emulator and still boots/runs.
 - The full original all-banks disassembly is preserved for reference at
   `ref/MIDI_Maze_disassembly_all_banks.asm`.
 - Split bank sources are the active rebuild source.

@@ -11,7 +11,10 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Initialization/OS-facing code followed by preserved fill.
+;   $8000-$8086  Bank-call slot $20 payload loader; copies block records and calls INITAD/RUNAD.
+;   $8087-$8A3F  First payload/block descriptor stream selected when Y is zero.
+;   $8A40-$9E44  Alternate payload/block descriptor stream selected when Y is nonzero.
+;   $9E45-$9FFF  Preserved trailing fill/data bytes.
 
 L0080	= $0080
 L0081	= $0081
@@ -105,7 +108,7 @@ LE6D0	= $E6D0 ; OS ROM routine, exact purpose not yet verified.
 LF004	= $F004
 LF4BE	= $F4BE
 	org $8000
-START1	CPY	#$00
+BANK5_PAYLOAD_LOADER_ENTRY	CPY	#$00	; bank-call slot $20
 	BNE	L800E
 	LDA	#$87
 	STA	L00AD

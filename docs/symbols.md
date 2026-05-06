@@ -79,10 +79,10 @@ semantic naming.
 | `$1D` | `$04` | `$801E` | `BANK4_SLOT1D_SERVICE_ENTRY` | `bank12:L8998`, `bank12:L94D3` |
 | `$1E` | `$04` | `$8021` | `BANK4_SLOT1E_SERVICE_ENTRY` | `bank12:L953F` |
 | `$1F` | `$04` | `$8024` | `BANK4_SLOT1F_SERVICE_ENTRY` | `bank12:L83B2`, `bank12:L83C3` |
-| `$20` | `$05` | `$8000` | bank 5 `$8000` | `bank12:L81E2`, `bank12:L829E` |
-| `$21` | `$02` | `$8000` | bank 2 `$8000` | setup/roster finalization paths in bank 12 |
-| `$22` | `$00` | `$8000` | bank 0 `$8000` | `bank12:L9A2D` |
-| `$23` | `$06` | `$8000` | bank 6 `$8000` | - |
+| `$20` | `$05` | `$8000` | `BANK5_PAYLOAD_LOADER_ENTRY` | `bank12:L81E2`, `bank12:L829E` |
+| `$21` | `$02` | `$8000` | `BANK2_SETUP_FINALIZE_ENTRY` | setup/roster finalization paths in bank 12 |
+| `$22` | `$00` | `$8000` | `BANK0_GAMEPLAY_UPDATE_ENTRY` | `bank12:L9A2D` gameplay loop |
+| `$23` | `$06` | `$8000` | `BANK6_MAZE_DATA_INIT_ENTRY` | initial table entry; no active call site proven yet |
 | `$24` | `$04` | `$8027` | `BANK4_SLOT24_SERVICE_ENTRY` | `bank12:L891F`, `bank12:L95F2` |
 
 Known volatile slot patches:

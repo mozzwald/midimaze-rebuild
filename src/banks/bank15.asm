@@ -11,8 +11,11 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $A000-$AFxx  Resident fixed-bank data and drawing/bank helper code.
-;   $BE6x-$BFFF  MIDI/POKEY serial handlers, buffers, and vectors.
+;   $A000-$A970  Resident packed data/tables and preserved byte runs.
+;   $A971-$AEFF  Drawing/math/random helpers used by switchable banks.
+;   $AF00-$B0E5  Bank switching, fixed-bank helpers, and bank-call slot table.
+;   $B0E6-$B510  Status/drawing helpers and resident display setup.
+;   $B511-$BFFF  Fixed draw/frame services, cartridge start/init, and MIDI/POKEY serial path.
 
 ; MIDI/SIO zero-page usage observed in this bank:
 ;   L0082  RX write index into MIDI_RX_BUFFER.

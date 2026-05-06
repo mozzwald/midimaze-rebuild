@@ -11,7 +11,11 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Drawing/game support code mixed with data tables.
+;   $8000-$81FA  Slot $04/$05 draw-state and display-scratch clear services.
+;   $81FB-$87C6  Slot $06 draw service and related drawing/math helpers.
+;   $87C7-$9BFF  Drawing lookup tables, display data, and helper code.
+;   $9C00-$9C9A  Slot $07 status/display clear service.
+;   $9C9B-$9FFF  Slot $09 status/display clear service and trailing data.
 
 L0080	= $0080
 L0081	= $0081

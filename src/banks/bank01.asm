@@ -11,7 +11,13 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Mixed code and embedded data; subranges still being identified.
+;   $8000-$8011  Bank entry and packed local jump stubs.
+;   $8012-$80D4  Per-player gameplay state initialization and mode selection.
+;   $80D5-$810C  Mixed preserved bytes plus MIDI_TX_BUFFER save/restore helper at $80E0.
+;   $811C-$83BF  Current-player movement/projectile state helpers.
+;   $83C0-$897F  Movement, collision, and facing-control helpers with embedded byte runs.
+;   $8980-$8DFF  Direction/math lookup data and helper code.
+;   $8E00-$9FFF  Preserved tables/data and trailing fill.
 
 L0080	= $0080
 L0083	= $0083

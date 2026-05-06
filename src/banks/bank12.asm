@@ -11,7 +11,13 @@
 ; Generated Lxxxx symbols are preserved until their meaning is proven.
 ; Hardware/OS constants are named where confidently identified.
 ; Bank map (working):
-;   $8000-$9FFF  Display/input support code mixed with data tables.
+;   $8000-$8091  Boot/menu entry and reset-to-menu dispatch.
+;   $8092-$853F  Setup defaults, status buffers, and callback-vector initialization.
+;   $8540-$9006  Master/slave setup, roster exchange, and setup payload transfer.
+;   $9007-$93F7  Status text, player-label templates, clamp/error-message helpers.
+;   $93F8-$980F  Gameplay/resync network command handling.
+;   $9815-$9B3F  Gameplay start, pause/hold handling, and bank 0 update loop caller.
+;   $9B40-$9FFF  Setup checksum exchange, full setup payload transfer, and tail helpers.
 
 L0080	= $0080
 L0081	= $0081
