@@ -207,6 +207,7 @@ the fixed-bank helpers.
 | `OUTGOING_NET_COMMAND` | `$3EE8` | Extended command queued by bank 12 for bank 4 injection into the command stream. |
 | `SETUP_REFRESH_DEADLINE` | `$3EEB` | Set to `L00B3 + $64` after setup/menu refresh points in banks 12 and 15. No active reads are confirmed yet. |
 | `BOT_COUNT_TARGET`, `BOT_COUNT_DRONE`, `BOT_COUNT_NINJA`, `BOT_COUNT_NASTY` | `$3EED-$3EEF`, `$3F13` | Setup bot counts; Nasty and Ninja share one packed protocol byte during resync. |
+| `PLAYER_BOT_TYPE` | `$3F16` | Per-player bot dispatch type filled by bank 1 from the four bot counts. `$FF` means human/inactive; `$00-$03` dispatch to the four bank 0 bot behavior paths. |
 | `SETUP_LINK_MODE` | `$3F07` | Setup path selector with values `LINK_MODE_DIRECT_OR_LOCAL`, `LINK_MODE_XM301`, `LINK_MODE_SX212`, and `LINK_MODE_ATARI_850`; controls which callback vector set bank 12 installs. |
 | `SETUP_LAST_SLOT1F_RESULT` | `$3F08` | Result byte returned from bank-call slot `$1F` during setup probing. |
 | `SETUP_RESUME_FLAG` | `$3F09` | Resume/re-entry flag checked with `SETUP_LINK_MODE` before returning to setup flow. |
@@ -258,6 +259,7 @@ the order used by `MASTER_SEND_SETUP_PAYLOAD` and
 | `MAZE_CELL_PLAYER_NEXT` | `$3A52` | `$10` | not on wire | Per-player next pointer for the maze-cell occupancy linked list. |
 | `PLAYER_HIT_BY_INDEX` | `$3AD2` | `$10` | not on setup payload | Player index associated with the current hit/collision event. |
 | `PLAYER_TEAM_INDEX` | `$3AF2` | `$10` | setup/team assignment | Team number initialized from player index and used by team-play scoring. |
+| `PLAYER_BOT_TYPE` | `$3F16` | `$10` | bot setup | Bot dispatch type for slots at or above `HUMAN_PLAYER_COUNT`; human/inactive slots use `$FF`. |
 | `PLAYER_FIRE_COOLDOWN` | `$3D19` | `$10` | gameplay param 1 | Default `$0A`; first byte of the pre-game gameplay parameter relay. |
 | `PLAYER_RELOAD_TIMER` | `$3D09` | `$10` | gameplay param 2 | Default `$64`; copied into state timers by gameplay update code. |
 | `PLAYER_PROJECTILE_LIFE` | `$3CF9` | `$10` | gameplay param 3 | Default `$32`; projectile/player state duration. |
@@ -291,6 +293,9 @@ bank 15 MIDI/POKEY transport.
 - `BOT_COUNT_TARGET = $3EED`, `BOT_COUNT_DRONE = $3EEE`,
   `BOT_COUNT_NINJA = $3EEF`, `BOT_COUNT_NASTY = $3F13`: setup bot counts.
   Nasty and Ninja are packed into one byte on the wire during resync.
+- `PLAYER_BOT_TYPE = $3F16`: per-player bot dispatch type. Bank 1 writes
+  `$00-$03` after the human range based on the bot counts, and bank 0 slot
+  `$22` dispatches those values during gameplay.
 - `NET_ERROR_CODE = $3ED2`: status/error code consumed by
   `PRINT_STATUS_MESSAGE`.
 - `PENDING_NET_COMMAND = $3EE7`: extended command byte received from the ring.

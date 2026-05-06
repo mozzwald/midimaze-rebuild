@@ -51,6 +51,11 @@ comments, symbols, tables, and trace notes before behavior changes.
   records per-array addresses, stride, owner/writer banks, reader banks,
   gameplay meaning, checksum coverage, and roster/status metadata trace
   targets.
+- [x] Complete Phase G6 human versus bot split. Human slots are
+  `0..HUMAN_PLAYER_COUNT-1`; bot slots are
+  `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1`; bank 1 fills
+  `PLAYER_BOT_TYPE`, bank 4 exchanges only human input/status, and bank 0
+  updates only bot slots.
 
 ## Phase G1: Mode Selection And Setup State
 
@@ -162,20 +167,20 @@ Verification gate:
 
 Goal: define the player index ranges and how bot/human update differs.
 
-- [ ] Document `HUMAN_PLAYER_COUNT`.
-- [ ] Document `TOTAL_PLAYER_COUNT`.
-- [ ] Document `LOCAL_PLAYER_INDEX`.
-- [ ] Identify where bot counts are converted into active player slots.
-- [ ] Identify where bots are updated.
-- [ ] Identify where human players are skipped, included, or treated as remote.
-- [ ] Document how local, remote, and bot players feed the same state arrays.
+- [x] Document `HUMAN_PLAYER_COUNT`.
+- [x] Document `TOTAL_PLAYER_COUNT`.
+- [x] Document `LOCAL_PLAYER_INDEX`.
+- [x] Identify where bot counts are converted into active player slots.
+- [x] Identify where bots are updated.
+- [x] Identify where human players are skipped, included, or treated as remote.
+- [x] Document how local, remote, and bot players feed the same state arrays.
 
 Verification gate:
 
-- [ ] `docs/gameplay.md` has a human/remote/bot player-index model.
-- [ ] `docs/fujinet-porting.md` describes whether FujiNet changes should
+- [x] `docs/gameplay.md` has a human/remote/bot player-index model.
+- [x] `docs/fujinet-porting.md` describes whether FujiNet changes should
   affect only human remote slots or also bot scheduling.
-- [ ] `make compare` exact if source comments/names changed.
+- [x] `make compare` exact if source comments/names changed.
 
 ## Phase G7: Bank-Call System For Gameplay Extension
 

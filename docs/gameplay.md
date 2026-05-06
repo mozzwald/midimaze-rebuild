@@ -15,7 +15,7 @@ commands, and maze buffers. Future FujiNet design notes belong in
 - [x] Transport-specific setup paths mapped.
 - [x] Incoming player data path mapped.
 - [x] Player state arrays deep-mapped.
-- [ ] Human versus bot split mapped.
+- [x] Human versus bot split mapped.
 - [ ] Network command/control bytes mapped.
 - [ ] Maze load path mapped.
 
@@ -124,7 +124,7 @@ inside `L9A2D` until `L3EB9` clears.
 |---|---|---|
 | bank 12 | `L9A2D`, `NET_COMMAND_DISPATCH`, resync/hold paths | High-level live control, command dispatch, periodic checksum/resync entry, and volatile slot patching. |
 | bank 4 | slot `$13` `BANK4_NET_COMMAND_SERVICE_ENTRY` | Transport-facing command service during setup, pre-live waits, live gameplay, and pause/resync waits. |
-| bank 0 | slot `$22` `BANK0_GAMEPLAY_UPDATE_ENTRY` | Non-human/bot gameplay update. It starts at `HUMAN_PLAYER_COUNT`, stores the current slot in `L40CB`, dispatches on `L3F16,X`, and stops at `TOTAL_PLAYER_COUNT`. |
+| bank 0 | slot `$22` `BANK0_GAMEPLAY_UPDATE_ENTRY` | Non-human/bot gameplay update. It starts at `HUMAN_PLAYER_COUNT`, stores the current slot in `L40CB`, dispatches on `PLAYER_BOT_TYPE,X`, and stops at `TOTAL_PLAYER_COUNT`. |
 | bank 1 | direct trampoline targets from bank 0 via `$AF41` | Movement, collision, targeting, and state helper routines used by bank 0. Bank 0 calls these with `A=bank`, `X=target high`, `Y=target low`. |
 | bank 13 | slot `$03` `BANK13_PLAYER_MAZE_UPDATE_ENTRY` | Registered player/maze/projectile update entry. No direct slot `$03` caller has been found in active source yet; the call path remains an explicit trace target for the player-state phases. |
 
@@ -391,3 +391,79 @@ generated labels until their lifetimes are mapped more tightly.
 first two are associated with projectile/hit state, while the latter three are
 setup/control scalars visible in bank 13 placement and game-over style paths.
 They are documented here as trace targets rather than promoted names.
+
+## Human Versus Bot Split
+
+The roster is a single contiguous player-index space. Human players always
+occupy the low indexes `0..HUMAN_PLAYER_COUNT-1`. Bot/non-human players occupy
+the following indexes `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1`. All of them
+feed the same `PLAYER_INPUT_STATUS` and player-state arrays before bank 13
+movement/projectile logic consumes the slot.
+
+### Count And Index Variables
+
+| Variable | Address | Writer/owner | Meaning |
+|---|---:|---|---|
+| `LOCAL_PLAYER_INDEX` | `$3968` | bank 12 setup/probe paths | This machine's human player slot. Player 0 is the setup/resync master and drives several transmit paths. |
+| `HUMAN_PLAYER_COUNT` | `$396B` | bank 12 setup, roster exchange, resync | Number of human stations/slots in the ring. Bank 4 live transport exchange scans only this range. |
+| `TOTAL_PLAYER_COUNT` | `$396E` | bank 12 `CLAMP_TOTAL_PLAYER_COUNT` | Total active roster after adding bots and clamping to the maze-size-dependent player limit. Bank 0 and display/status paths stop here. |
+| `BOT_COUNT_TARGET` | `$3EED` | bank 12 setup/resync | Count of bot type `$00` slots. |
+| `BOT_COUNT_DRONE` | `$3EEE` | bank 12 setup/resync | Count of bot type `$01` slots. |
+| `BOT_COUNT_NINJA` | `$3EEF` | bank 12 setup/resync | Count of bot type `$02` slots. During resync, it is packed in the low nibble with Nasty in the high nibble. |
+| `BOT_COUNT_NASTY` | `$3F13` | bank 12 setup/resync | Count of bot type `$03` slots. |
+| `PLAYER_BOT_TYPE` | `$3F16` / `$10` | bank 1 setup helper | Per-player bot dispatch type. Human slots remain `$FF`; bot slots are `$00-$03`. |
+
+`CLAMP_TOTAL_PLAYER_COUNT` sums
+`HUMAN_PLAYER_COUNT + BOT_COUNT_TARGET + BOT_COUNT_DRONE + BOT_COUNT_NINJA +
+BOT_COUNT_NASTY`, compares that sum with the current maze-size player limit,
+and stores the result in `TOTAL_PLAYER_COUNT`. If the requested sum is too
+large, it clears all four bot counts and falls back to
+`TOTAL_PLAYER_COUNT = HUMAN_PLAYER_COUNT`.
+
+### Slot Ranges
+
+| Range | Filled by | Live update path | Notes |
+|---|---|---|---|
+| `0..HUMAN_PLAYER_COUNT-1` | bank 12 setup/ring negotiation | bank 4 slot `$13` writes `PLAYER_INPUT_STATUS` for local and remote human slots | `LOCAL_PLAYER_INDEX` identifies the one slot that reads `STICK0`/`STRIG0`; the other human slots are received from transport. |
+| `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1` | bank 1 bot-type setup from the four bot counts | bank 0 slot `$22` writes bot `PLAYER_INPUT_STATUS` and some facing/control state | These slots do not participate in the bank 4 live human status exchange. |
+| `TOTAL_PLAYER_COUNT..15` | setup/reset scratch only | no live roster update | Arrays may still be initialized or cleared, but live loops generally stop before these indexes. |
+
+### Bot Type Assignment
+
+Bank 1 initializes bot runtime arrays, stores `$FF` in `PLAYER_BOT_TYPE` for
+the initialized roster, then fills bot slots starting at `HUMAN_PLAYER_COUNT`:
+
+| `PLAYER_BOT_TYPE` value | Count source | Bank 0 dispatch target | Meaning |
+|---:|---|---|---|
+| `$FF` | human or inactive slot | skipped by bank 0 dispatcher | Not a bot-controlled slot. |
+| `$00` | `BOT_COUNT_TARGET` | `L80A4` | Target-style bot. |
+| `$01` | `BOT_COUNT_DRONE` | `L80F2` | Drone bot. |
+| `$02` | `BOT_COUNT_NINJA` | `L819C` | Ninja bot. |
+| `$03` | `BOT_COUNT_NASTY` | `L81EC` | Nasty bot. |
+
+Bank 0 slot `$22` starts at `HUMAN_PLAYER_COUNT`, copies the current slot to
+`L40CB`, checks `PLAYER_BOT_TYPE,X`, and dispatches only bot types `$00-$03`.
+It increments `L40CB` until it reaches `TOTAL_PLAYER_COUNT`, then returns
+through `BANK_RETURN`.
+
+### Human Local And Remote Handling
+
+Bank 4 slot `$13` uses `HUMAN_PLAYER_COUNT` as the live exchange length. It
+packs the local joystick/status byte into
+`PLAYER_INPUT_STATUS[LOCAL_PLAYER_INDEX]`, sends it, and then walks the human
+ring backward to receive the other human slots. The completion scan at `L821E`
+also stops at `HUMAN_PLAYER_COUNT`, so bot slots are never parsed as incoming
+human command/status bytes.
+
+This gives all active players the same final movement interface:
+
+| Player kind | Source of `PLAYER_INPUT_STATUS` | Movement consumer |
+|---|---|---|
+| Local human | bank 4 reads `STICK0`, `STRIG0`, and local command bytes | bank 13 slot `$03` copies the selected slot byte to `L00C7`. |
+| Remote human | bank 4 receives bytes through `NET_CALL_VECTOR_0/2` and stores them by human slot | bank 13 slot `$03` uses the same `L00C7` movement/fire decode. |
+| Bot | bank 0 AI paths write `PLAYER_INPUT_STATUS` and steering/facing state for slots at or above `HUMAN_PLAYER_COUNT` | bank 13 slot `$03` uses the same movement/fire decode once that bot slot is selected. |
+
+The important FujiNet implication is that network transport should produce
+valid human-slot status bytes only. Bot scheduling is local gameplay state
+derived from shared setup counts and should stay behind the
+`HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1` boundary.

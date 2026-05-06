@@ -10,8 +10,9 @@ gameplay path is documented with exact bank/routine/slot references.
 ## Current Status
 
 - [x] Gameplay-loop FujiNet service insertion points identified.
-- [ ] Transport setup analogue selected.
-- [ ] Incoming byte semantics documented.
+- [x] Transport setup analogue selected.
+- [x] Incoming byte semantics documented.
+- [x] Human/remote/bot boundary documented.
 - [ ] Bank-call extension strategy documented.
 - [ ] Command semantics documented.
 - [ ] RAM/code-space risk table completed.
@@ -83,3 +84,25 @@ bytes. The critical behavior is the two-stage player status exchange:
 Do not bypass `PLAYER_INPUT_STATUS`. Bank 13 movement consumes it through the
 slot `$03` byte entry, which copies `PLAYER_INPUT_STATUS[player]` into `L00C7`
 before applying move/turn/fire bits.
+
+## Human/Bot Boundary
+
+FujiNet transport work should affect human slots, not bot scheduling. The
+current game treats indexes `0..HUMAN_PLAYER_COUNT-1` as human ring members and
+indexes `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1` as local bot/non-human
+actors. Bank 4 slot `$13` exchanges and parses only the human range; bank 0
+slot `$22` updates only the bot range.
+
+Future FujiNet RX/TX should therefore preserve these boundaries:
+
+| Range | FujiNet responsibility | Do not change yet |
+|---|---|---|
+| `LOCAL_PLAYER_INDEX` within the human range | Pack/send this machine's live status and command companion bytes. | Do not make the local player index overlap a bot slot. |
+| Other indexes below `HUMAN_PLAYER_COUNT` | Receive/store remote human status bytes in `PLAYER_INPUT_STATUS`. | Do not parse bot slots as network peers. |
+| `HUMAN_PLAYER_COUNT..TOTAL_PLAYER_COUNT-1` | No live network exchange; bots are reproduced from shared setup counts. | Do not move bot AI into the transport service or send per-frame bot packets. |
+
+The shared setup/resync path must still distribute the bot counts
+(`BOT_COUNT_TARGET`, `BOT_COUNT_DRONE`, `BOT_COUNT_NINJA`,
+`BOT_COUNT_NASTY`) because those counts determine `TOTAL_PLAYER_COUNT` and
+`PLAYER_BOT_TYPE`. Per-frame FujiNet transport should stop at
+`HUMAN_PLAYER_COUNT`, matching bank 4's existing exchange loop.
