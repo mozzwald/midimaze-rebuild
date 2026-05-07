@@ -139,7 +139,7 @@ When bytes differ, inspect the source around the corresponding bank offset befor
 
 ## Emulator test workflow
 
-This section covers runime usage of the Atari800 AI interface:
+This section covers runtime usage of the Atari800 AI interface:
 - AI command socket (`/tmp/atari800_ai.sock`)
 
 ### 1. Run With AI Enabled
@@ -148,6 +148,12 @@ Launch Atari800 with `-ai`, for example:
 
 ```bash
 atari800-ai -xl -ntsc -ai -cart-type 14 -cart </path/to/cart.rom>
+```
+
+For this project, the known-good command is:
+
+```bash
+atari800-ai -ai -xl -ntsc -cart-type 14 -cart /home/mozzwald/fujicode/midimaze-source/build/midimaze.rom
 ```
 
 ### 2. AI JSON Socket Protocol
@@ -162,15 +168,20 @@ Client -> Server: <json_length>\n<json_command>
 Server -> Client: <json_length>\n<json_response>
 ```
 
+Important: this local `atari800-ai` build expects the JSON command name in the
+`cmd` field, not `command`. For example, use `{"cmd":"ping"}`, not
+`{"command":"ping"}`.
+
 Example Python helper:
 
 ```python
 import socket, json
 
-def send_command(cmd):
+def send_command(msg, timeout=2):
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(timeout)
     s.connect('/tmp/atari800_ai.sock')
-    data = json.dumps(cmd).encode('utf-8')
+    data = json.dumps(msg).encode('utf-8')
     s.sendall(str(len(data)).encode('ascii') + b'\n' + data)
 
     header = b''
@@ -183,19 +194,27 @@ def send_command(cmd):
         body += s.recv(n - len(body))
     s.close()
     return json.loads(body.decode('utf-8'))
+
+print(send_command({"cmd": "ping"}))
 ```
 
+When advancing time from scripts, call `{"cmd":"run","frames":1}` in a loop.
+This local build has been observed returning `frames_run: 1` even when a larger
+frame count is requested.
+
 ### 3. Core AI Commands
+
+Use `{"cmd":"<command>", ...}` for all commands below.
 
 #### Control Commands
 
 | Command | Parameters | Description |
 |---------|------------|-------------|
-| `ping` | - | Test connection, returns `{status: "ok"}` |
+| `ping` | - | Test connection; returns `{status:"ok", msg:"pong"}` |
 | `load` | `path` | Load a program file (.xex, .atr, etc.) |
-| `run` | `frames` | Run emulator for N frames (1 frame = 1/60 sec) |
-| `step` | - | Execute single CPU instruction |
-| `pause` | - | Pause emulation |
+| `run` | `frames` | Advance emulation. In this build, loop single-frame calls for reliable scripted timing. |
+| `step` | - | Not reliable in this local build; observed to timeout/hang. Do not depend on it. |
+| `pause` | - | Pause emulation; observed working. |
 | `reset` | - | Reset the Atari |
 
 #### Input Commands
@@ -258,6 +277,76 @@ def send_command(cmd):
 |---------|------------|-------------|
 | `debug_enable` | `port` | Enable debug port at $D7xx |
 | `debug_read` | - | Read data from debug port |
+
+### 4. Verified Local Behavior And Caveats
+
+Observed working commands in this workspace:
+
+- `ping`, `cpu`
+- `run` with single-frame loop usage
+- `screen_ascii`, `screenshot`
+- `joystick`, `key`, `key_release`, `consol`
+- `peek`, `poke`, `dump`
+- `pause`, `reset`
+- `debug_enable`, `debug_read`
+
+Observed caveats:
+
+- `breakpoint` is not implemented in this local build; it returns
+  `Unknown command`.
+- `step` timed out during testing. Avoid it in automated workflows.
+- `dump` accepted `addr`, `len`, and `path`, but reported `bytes: 65536` for a
+  16-byte request during one test. Prefer `peek` for small memory probes.
+- `joystick` correctly updates `STICK0` (`$0278`) and `STRIG0` (`$0284`) during
+  live gameplay. In live solo testing, `PLAYER_INPUT_STATUS[0]` at `$3D29`
+  changed from `$00` to `$01` for forward/up and to `$18` for right+fire.
+- The AI socket supports memory polling well enough for Phase 0 trace work, but
+  not breakpoint-driven tracing. Use polling loops, screenshots, memory
+  snapshots, or instrumented debug-port code for detailed traces.
+
+### 5. Useful Smoke-Test Snippet
+
+This snippet verifies the socket, takes a screenshot, moves the live player, and
+peeks key gameplay RAM. Start or navigate to a live solo game first.
+
+```python
+import socket, json
+
+SOCK = "/tmp/atari800_ai.sock"
+
+def send(msg, timeout=2):
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    s.connect(SOCK)
+    data = json.dumps(msg).encode("utf-8")
+    s.sendall(str(len(data)).encode("ascii") + b"\n" + data)
+
+    header = b""
+    while not header.endswith(b"\n"):
+        header += s.recv(1)
+    n = int(header.strip())
+
+    body = b""
+    while len(body) < n:
+        body += s.recv(n - len(body))
+    s.close()
+    return json.loads(body.decode("utf-8"))
+
+def run_frames(n):
+    for _ in range(n):
+        send({"cmd": "run", "frames": 1})
+
+print(send({"cmd": "ping"}))
+print(send({"cmd": "screenshot", "path": "/tmp/midimaze_live.png"}))
+print(send({"cmd": "peek", "addr": 0x3D29, "len": 4}))  # PLAYER_INPUT_STATUS
+
+send({"cmd": "joystick", "port": 0, "direction": "up", "fire": False})
+run_frames(60)
+print(send({"cmd": "peek", "addr": 0x3D29, "len": 4}))
+print(send({"cmd": "peek", "addr": 0x39B2, "len": 4}))  # PLAYER_X_LO
+print(send({"cmd": "peek", "addr": 0x39F2, "len": 4}))  # PLAYER_Y_LO
+send({"cmd": "joystick", "port": 0, "direction": "center", "fire": False})
+```
 
 ## MIDI/SIO handler warnings
 
