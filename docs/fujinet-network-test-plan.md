@@ -10,6 +10,12 @@ solo. It has not proven the remote-human exchange.
 For the next phase, I need a reproducible way to reach a live network game with
 at least two human slots.
 
+The current relay-client flow is documented in
+`docs/fujinet-two-agent-network-runbook.md`. In short, each machine starts in a
+special Atari client app, joins or creates a relay-server game, then the client
+resets the Atari into the cartridge. Players select `MIDI-MATE`; the last
+machine to select it becomes master.
+
 Minimum useful setup:
 
 - Two Atari800 AI instances, both launched with `-nosound`, each with a usable
@@ -36,6 +42,14 @@ Nice-to-have setup:
 
 The first network trace should stay observational. I am not looking to change
 the ROM yet.
+
+Recommended order:
+
+1. Live movement-only trace: you manually get both machines into live gameplay,
+   then both agents start watching. This has the least coordination risk.
+2. Setup-packet trace: both agents start watching before `MIDI-MATE` selection
+   so we can capture master/slave setup. This requires deciding which machine
+   should select `MIDI-MATE` last.
 
 ### Setup Handshake
 
