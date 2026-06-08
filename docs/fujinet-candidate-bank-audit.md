@@ -25,6 +25,60 @@ bank07.bin  7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f
 This confirms both banks currently emit identical 8 KiB `$FF` images. It does
 not, by itself, prove they are safe to repurpose.
 
+## Solo Bank-Selection Trace Tool
+
+`tools/bank_trace.py` polls the currently selected bank byte `L008C` and a small
+set of hot bank-call table slots while running the default solo path. It can
+launch Atari800 AI itself:
+
+```sh
+python3 tools/bank_trace.py --launch --out build/bank_trace_solo.json
+```
+
+The launcher uses `atari800-ai -ai -xl -ntsc -nosound -cart-type 14` and the
+built ROM by default. The output JSON is generated test evidence and belongs in
+`build/`, not source control.
+
+The default trace phases are:
+
+- boot/menu frames before input,
+- joystick FIRE navigation through default SOLO and PLAY,
+- live idle,
+- live held UP,
+- live held FIRE.
+
+It records only state transitions, so the output is small enough to inspect
+while still catching bank-call table changes.
+
+## Default Solo Trace Result
+
+The default solo bank trace run on this workspace wrote
+`build/bank_trace_solo.json` and reported:
+
+```text
+transitions=388
+current_banks_seen=[0, 4, 12, 13, 14]
+candidate_hits=0
+```
+
+The hot slots sampled in that trace used these bank IDs:
+
+| Slot | Banks seen | Meaning |
+|---:|---|---|
+| `$03` | `0, 13` | zero during early boot/table setup, then bank 13 player update consumer |
+| `$10` | `0, 13` | zero during early boot/table setup, then bank 13 player dispatch |
+| `$11` | `0, 12` | zero during early boot/table setup, then volatile bank 12 continuation |
+| `$13` | `0, 4` | zero during early boot/table setup, then bank 4 live network service |
+| `$1B` | `0, 4` | bank 4 reset/status-related slot after setup |
+| `$1C` | `0, 4` | bank 4 command/status-related slot after setup |
+| `$22` | `0` | bank 0 bot/non-human update slot in the sampled solo path |
+| `$24` | `0, 4` | bank 4 wait/hold-related slot after setup |
+
+No sampled current-bank state or hot bank-call slot used bank `$03` or bank
+`$07`. This strengthens the candidate-bank case for solo boot/menu/live play,
+but it still does not prove those banks are unused in MIDI-MATE/network setup,
+hold/sync, resync, or error/status paths.
+
 ## Bank-Call Table Evidence
 
 The primary bank-call trampoline is fixed-bank `BANK_CALL_INDEXED` at `$AF1D`
