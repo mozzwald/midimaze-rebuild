@@ -137,6 +137,10 @@ xxd -g1 -c16 build/midimaze.rom | less
 
 When bytes differ, inspect the source around the corresponding bank offset before making assumptions.
 
+## Atari 8 Knowledge MCP Server
+
+You may use the Atari 8 Bit knowledge MCP server API as needed for Atari specific skills and information. This is documented in docs/ATARI_MCP.md. If API is not available to you and you wish to use the API, stop and request the API from the user.
+
 ## Emulator test workflow
 
 This section covers runtime usage of the Atari800 AI interface:
@@ -147,13 +151,13 @@ This section covers runtime usage of the Atari800 AI interface:
 Launch Atari800 with `-ai`, for example:
 
 ```bash
-atari800-ai -xl -ntsc -ai -cart-type 14 -cart </path/to/cart.rom>
+atari800-ai -xl -ntsc -ai -nosound -cart-type 14 -cart </path/to/cart.rom>
 ```
 
 For this project, the known-good command is:
 
 ```bash
-atari800-ai -ai -xl -ntsc -cart-type 14 -cart /home/mozzwald/fujicode/midimaze-source/build/midimaze.rom
+atari800-ai -ai -xl -ntsc -nosound -cart-type 14 -cart /home/mozzwald/fujicode/midimaze-source/build/midimaze.rom
 ```
 
 ### 2. AI JSON Socket Protocol
